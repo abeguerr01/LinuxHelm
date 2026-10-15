@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,8 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -25,21 +28,25 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.linuxhelm.ui.ulxLib.ulxColor
 import com.example.linuxhelm.ui.ulxLib.ulxLang
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -54,7 +61,9 @@ fun ScreenInfo() {
         "emerge" to "https://wiki.gentoo.org/wiki/Package_Management"
     )
     val uriHandler = LocalUriHandler.current
+    val scope = rememberCoroutineScope()
     var disks by remember { mutableStateOf(emptyList<DiskInfo>()) }
+    var checking by remember { mutableStateOf(emptySet<String>()) }
     var isExpanded by remember { mutableStateOf(true) }
     val scrollState = rememberScrollState()
 
@@ -134,6 +143,8 @@ fun ScreenInfo() {
                         .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
                 ) {
                     disks.forEachIndexed { index, disk ->
+                        val isChecking = disk.device in checking
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -145,15 +156,51 @@ fun ScreenInfo() {
                             Column(Modifier.weight(1f)) {
                                 Text(disk.name, style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    disk.mountPoint ?: ulxLang.NoMontado,
+                                    disk.mountPoint ?: "No montado",
                                     style = MaterialTheme.typography.bodySmall
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                // Indicador de estado
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(CircleShape)
+                                            .background(disk.health.color())
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        disk.healthDetail,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+
+                                TextButton(
+                                    enabled = !isChecking,
+                                    onClick = {
+                                        scope.launch {
+                                            checking = checking + disk.device
+                                            val (health, detail) = withContext(Dispatchers.IO) {
+                                                deepCheck(disk)
+                                            }
+                                            disks = disks.map {
+                                                if (it.device == disk.device)
+                                                    it.copy(health = health, healthDetail = detail)
+                                                else it
+                                            }
+                                            checking = checking - disk.device
+                                        }
+                                    }
+                                ) {
+                                    Text(if (isChecking) "Comprobando…" else "Comprobar a fondo")
+                                }
                             }
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(horizontalAlignment = Alignment.End) {
                                 if (disk.usedBytes != null && disk.percentUsed != null) {
                                     Text("${disk.usedStr} / ${disk.totalStr}")
-                                    Text("${disk.percentUsed}% ${ulxLang.EnUso}")
+                                    Text("${disk.percentUsed}% usado")
                                 } else {
                                     Text(disk.totalStr)
                                 }
@@ -192,6 +239,18 @@ fun detectPackageManager(): String? {
 }
 
 /**
+ * Estado de salud de una unidad.
+ */
+enum class DiskHealth { OK, WARNING, ERROR, UNKNOWN }
+
+private fun DiskHealth.color(): Color = when (this) {
+    DiskHealth.OK -> Color(0xFF66BB6A)
+    DiskHealth.WARNING -> Color(0xFFFFCA28)
+    DiskHealth.ERROR -> Color(0xFFEF5350)
+    DiskHealth.UNKNOWN -> Color(0xFFBDBDBD)
+}
+
+/**
  * Definición de una unidad de almacenamiento (como la ve Dolphin).
  *
  * Si la unidad no está montada, mountPoint, usedBytes y percentUsed son null.
@@ -199,10 +258,14 @@ fun detectPackageManager(): String? {
 data class DiskInfo(
     val name: String,
     val device: String,
+    val fsType: String,
+    val uuid: String?,
     val mountPoint: String?,
     val totalBytes: Long,
     val usedBytes: Long?,
-    val percentUsed: Int?
+    val percentUsed: Int?,
+    val health: DiskHealth = DiskHealth.UNKNOWN,
+    val healthDetail: String = "Sin comprobar"
 ) {
     val usedStr: String get() = usedBytes?.let { formatBytes(it) } ?: ""
     val totalStr: String get() = formatBytes(totalBytes)
@@ -248,6 +311,169 @@ private fun parseLsblkLine(line: String): Map<String, String> {
 }
 
 /**
+ * Lee /proc/self/mounts y devuelve punto de montaje -> opciones de montaje.
+ */
+private fun readMountOptions(): Map<String, Set<String>> {
+    val octal = Regex("\\\\([0-7]{3})")
+    return try {
+        File("/proc/self/mounts").readLines().mapNotNull { line ->
+            val p = line.split(" ")
+            if (p.size < 4) return@mapNotNull null
+            // /proc/mounts escapa los espacios como \040
+            val mountPoint = octal.replace(p[1]) { it.groupValues[1].toInt(8).toChar().toString() }
+            mountPoint to p[3].split(",").toSet()
+        }.toMap()
+    } catch (e: Exception) {
+        emptyMap()
+    }
+}
+
+/**
+ * Comprobación rápida y SIN root.
+ *
+ * - ext4: contador de errores del kernel (/sys/fs/ext4/<dev>/errors_count)
+ * - btrfs: contadores de errores de E/S (/sys/fs/btrfs/<uuid>/devinfo/<id>/error_stats)
+ * - Cualquier sistema: montada en solo lectura
+ *
+ * Estos ficheros solo existen en kernels recientes. Si no existen, el resultado es
+ * "Sin comprobar" (nunca se marca como correcto sin haber podido verificarlo).
+ */
+private fun quickCheck(
+    dev: String,
+    fs: String,
+    uuid: String?,
+    mountPoint: String?,
+    mountOptions: Map<String, Set<String>>
+): Pair<DiskHealth, String> {
+    if (mountPoint == null) return DiskHealth.UNKNOWN to "No montada, sin comprobar"
+
+    var verified = false
+    val errors = mutableListOf<String>()
+
+    when (fs) {
+        "ext2", "ext3", "ext4" -> {
+            val f = File("/sys/fs/ext4/$dev/errors_count")
+            if (f.canRead()) {
+                verified = true
+                val n = f.readText().trim().toLongOrNull() ?: 0L
+                if (n > 0) errors += "$n errores registrados por el kernel"
+            }
+        }
+
+        "btrfs" -> {
+            val devinfo = uuid?.let { File("/sys/fs/btrfs/$it/devinfo").listFiles() }
+            devinfo?.forEach { d ->
+                val f = File(d, "error_stats")
+                if (f.canRead()) {
+                    verified = true
+                    f.readLines().forEach { line ->
+                        val p = line.trim().split(Regex("\\s+"))
+                        val n = p.getOrNull(1)?.toLongOrNull() ?: 0L
+                        if (n > 0) errors += "${p[0]}: $n"
+                    }
+                }
+            }
+        }
+    }
+
+    val readOnly = mountOptions[mountPoint]?.contains("ro") == true
+
+    return when {
+        errors.isNotEmpty() -> DiskHealth.ERROR to errors.joinToString(", ")
+        readOnly -> DiskHealth.WARNING to "Montada en solo lectura"
+        verified -> DiskHealth.OK to "Sin errores registrados"
+        else -> DiskHealth.UNKNOWN to "Sin comprobar"
+    }
+}
+
+/**
+ * Comprobación a fondo, con root (pkexec muestra el diálogo gráfico de contraseña).
+ * Solo lectura: no repara nada.
+ *
+ * Herramientas necesarias (en Arch): e2fsprogs, ntfs-3g, dosfstools, btrfs-progs, polkit.
+ * Es más fiable con la unidad DESMONTADA; si está montada, el resultado es orientativo.
+ */
+fun deepCheck(disk: DiskInfo): Pair<DiskHealth, String> {
+    val cmd: List<String> = when (disk.fsType) {
+        "ext2", "ext3", "ext4" -> listOf("dumpe2fs", "-h", disk.device)
+        "ntfs", "ntfs3" -> listOf("ntfs-3g.probe", "--readonly", disk.device)
+        "vfat" -> listOf("fsck.fat", "-n", disk.device)
+        "btrfs" -> {
+            val mp = disk.mountPoint
+                ?: return DiskHealth.UNKNOWN to "Monta la unidad para comprobar Btrfs"
+            listOf("btrfs", "device", "stats", mp)
+        }
+
+        else -> return DiskHealth.UNKNOWN to "Comprobación no soportada (${disk.fsType})"
+    }
+
+    val (code, out) = try {
+        val p = ProcessBuilder(listOf("pkexec") + cmd)
+            .redirectErrorStream(true)
+            .start()
+        val text = p.inputStream.bufferedReader().readText()
+        p.waitFor() to text
+    } catch (e: Exception) {
+        return DiskHealth.UNKNOWN to "No se pudo ejecutar pkexec"
+    }
+
+    // 126/127: autorización cancelada o denegada, o comando no encontrado
+    if (code == 126 || code == 127) {
+        return DiskHealth.UNKNOWN to "Sin permisos o herramienta no instalada"
+    }
+
+    val mountedNote = if (disk.mountPoint != null) " (montada, orientativo)" else ""
+
+    return when (disk.fsType) {
+        "ext2", "ext3", "ext4" -> {
+            val lines = out.lines()
+            val state = lines.firstOrNull { it.startsWith("Filesystem state:") }
+                ?.substringAfter(":")?.trim()?.lowercase().orEmpty()
+            val features = lines.firstOrNull { it.startsWith("Filesystem features:") }.orEmpty()
+
+            when {
+                "errors" in state ->
+                    DiskHealth.ERROR to "El sistema de archivos tiene errores"
+                disk.mountPoint == null && "needs_recovery" in features ->
+                    DiskHealth.WARNING to "Cierre incorrecto (journal pendiente de recuperar)"
+                disk.mountPoint == null && "not clean" in state ->
+                    DiskHealth.WARNING to "No limpio (dirty), se recomienda fsck"
+                state.isNotEmpty() ->
+                    DiskHealth.OK to "Sin problemas detectados"
+                else ->
+                    DiskHealth.UNKNOWN to "No se pudo leer el estado"
+            }
+        }
+
+        "ntfs", "ntfs3" -> when (code) {
+            0 -> DiskHealth.OK to "Sin problemas detectados$mountedNote"
+            3 -> DiskHealth.ERROR to "Volumen NTFS dañado"
+            4 -> DiskHealth.WARNING to "Hibernado por Windows (inicio rápido)"
+            5 -> DiskHealth.WARNING to "Cierre incorrecto (dirty)"
+            else -> DiskHealth.UNKNOWN to "Resultado no concluyente (código $code)"
+        }
+
+        "vfat" -> when {
+            "dirty bit is set" in out.lowercase() ->
+                DiskHealth.WARNING to "Dirty bit activo: cierre incorrecto"
+            code == 0 -> DiskHealth.OK to "Sin problemas detectados$mountedNote"
+            else -> DiskHealth.ERROR to "Inconsistencias detectadas$mountedNote"
+        }
+
+        "btrfs" -> {
+            val bad = out.lines().map { it.trim() }.filter { line ->
+                val n = line.split(Regex("\\s+")).lastOrNull()?.toLongOrNull()
+                n != null && n > 0
+            }
+            if (bad.isEmpty()) DiskHealth.OK to "Sin errores de E/S registrados"
+            else DiskHealth.ERROR to "${bad.size} contador(es) con errores de E/S"
+        }
+
+        else -> DiskHealth.UNKNOWN to "Comprobación no soportada"
+    }
+}
+
+/**
  * Función para obtener las unidades de almacenamiento del sistema, al estilo de Dolphin.
  *
  * Usa `lsblk` para listar particiones reales (con etiqueta, montadas o no)
@@ -258,7 +484,7 @@ fun getDiskInfo(): List<DiskInfo> {
     return try {
         val process = ProcessBuilder(
             "lsblk", "-b", "-P", "-e", "7",
-            "-o", "NAME,LABEL,SIZE,FSTYPE,MOUNTPOINT,TYPE,PKNAME,RM,PARTTYPE"
+            "-o", "NAME,LABEL,UUID,SIZE,FSTYPE,MOUNTPOINT,TYPE,PKNAME,RM,PARTTYPE"
         )
             .redirectErrorStream(true)
             .start()
@@ -277,6 +503,7 @@ fun getDiskInfo(): List<DiskInfo> {
 
         val espGuid = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b" // partición EFI (Dolphin la oculta)
         val ignoredFs = setOf("swap", "linux_raid_member", "LVM2_member")
+        val mountOptions = readMountOptions()
 
         rows
             .filter { row ->
@@ -296,6 +523,8 @@ fun getDiskInfo(): List<DiskInfo> {
             .map { row ->
                 val dev = row["NAME"].orEmpty()
                 val label = row["LABEL"].orEmpty()
+                val fs = row["FSTYPE"].orEmpty()
+                val uuid = row["UUID"].orEmpty().ifBlank { null }
                 val mount = row["MOUNTPOINT"].orEmpty().ifBlank { null }
                 val sizeBytes = row["SIZE"]?.toLongOrNull() ?: 0L
                 val removable = row["RM"] == "1"
@@ -309,13 +538,19 @@ fun getDiskInfo(): List<DiskInfo> {
                 val used = file?.let { total - it.usableSpace }
                 val percent = used?.let { if (total > 0) ((it * 100) / total).toInt() else 0 }
 
+                val (health, detail) = quickCheck(dev, fs, uuid, mount, mountOptions)
+
                 DiskInfo(
                     name = displayName,
                     device = "/dev/$dev",
+                    fsType = fs,
+                    uuid = uuid,
                     mountPoint = mount,
                     totalBytes = total,
                     usedBytes = used,
-                    percentUsed = percent
+                    percentUsed = percent,
+                    health = health,
+                    healthDetail = detail
                 )
             }
             .sortedBy { it.device }
