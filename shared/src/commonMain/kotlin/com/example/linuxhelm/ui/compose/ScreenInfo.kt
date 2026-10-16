@@ -52,7 +52,7 @@ import java.io.File
 
 @Preview
 @Composable
-fun ScreenInfo() {
+fun ScreenInfo(onVolver: () -> Unit = {}) {
     val wikiUrls = mapOf(
         "apt" to "https://wiki.debian.org/Apt",
         "dnf" to "https://dnf.readthedocs.io/",
@@ -82,6 +82,13 @@ fun ScreenInfo() {
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // Volver a la principal (ver BotonVolver en Screen.kt)
+        Row(modifier = Modifier.fillMaxWidth()) {
+            BotonVolver(onVolver)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         // Row del gestor de paquetes
         Row(
             modifier = Modifier

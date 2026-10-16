@@ -6,6 +6,7 @@ package com.example.linuxhelm.ui.ulxLib
  * Los nombres de las variables están en castellano pero se inicializa en Inglés.
  */
 object ulxLang {
+    var Volver = "Back"
     var Informacion = "Information"
     var Herramientas = "Tools"
     var Configuracion = "Configuration"

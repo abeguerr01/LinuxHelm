@@ -19,7 +19,7 @@ import com.example.linuxhelm.ui.ulxLib.ulxLang
 
 @Preview
 @Composable
-fun ScreenPrincipal(){
+fun ScreenPrincipal(onNavigate: (Pantalla) -> Unit = {}) {
     Column(
         modifier = Modifier
             .background(ulxColor.fondo)
@@ -32,13 +32,13 @@ fun ScreenPrincipal(){
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Button(onClick = {  }) {
+        Button(onClick = { onNavigate(Pantalla.Info) }) {
             Text(text = ulxLang.Informacion)
         }
-        Button(onClick = {  }) {
+        Button(onClick = { onNavigate(Pantalla.Tools) }) {
             Text(text = ulxLang.Herramientas)
         }
-        Button(onClick = {  }) {
+        Button(onClick = { onNavigate(Pantalla.Configuracion) }) {
             Text(text = ulxLang.Configuracion)
         }
     }
