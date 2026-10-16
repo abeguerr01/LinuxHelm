@@ -9,15 +9,35 @@ import javax.swing.filechooser.FileNameExtensionFilter
  *
  * - `.sh`   → `bash fichero` (así no hace falta que el archivo tenga +x)
  * - `.jar`  → `java -jar fichero`
- * - otro    → se ejecuta directamente (binarios; necesita permisos de ejecución)
+ * - `.py`   → `python3 fichero` (tampoco necesita +x)
+ * - otro    → se ejecuta directamente: binarios ELF, `.AppImage`, `.run`,
+ *             `.bin`, o scripts con shebang que sí tengan +x.
+ *
+ * La comprobación de extensión ignore mayúsculas, así `.AppImage` y `.appimage`
+ * se tratan igual.
  */
 fun buildCommand(path: String, args: List<String> = emptyList()): List<String> {
+    val lower = path.lowercase()
     val base = when {
-        path.endsWith(".sh") -> listOf("bash", path)
-        path.endsWith(".jar") -> listOf("java", "-jar", path)
+        lower.endsWith(".sh") -> listOf("bash", path)
+        lower.endsWith(".jar") -> listOf("java", "-jar", path)
+        lower.endsWith(".py") -> listOf("python3", path)
         else -> listOf(path)
     }
     return base + args
+}
+
+/**
+ * ¿Este archivo necesita permiso de ejecución (+x) para lanzarse?
+ *
+ * `.sh`, `.jar` y `.py` no (bash/java/python3 los interpretan ellos), pero el
+ * resto se lanzan directamente y sin +x la terminal devolvería "Permission denied".
+ *
+ * La UI usa esto para avisar y deshabilitar "Ejecutar" antes de que falle.
+ */
+fun needsExecuteBit(path: String): Boolean {
+    val lower = path.lowercase()
+    return !(lower.endsWith(".sh") || lower.endsWith(".jar") || lower.endsWith(".py"))
 }
 
 /**
@@ -115,11 +135,12 @@ fun openScriptInTerminal(path: String, args: List<String> = emptyList()): Boolea
 }
 
 /**
- * Abre un diálogo nativo para elegir UN archivo de script (.sh, .jar o binario).
+ * Abre un diálogo nativo para elegir UN archivo ejecutable.
  *
  * Usa `JFileChooser` (del propio JDK, sin dependencias extra).
- * El filtro predeterminado muestra .sh y .jar, pero el usuario puede cambiar a
- * "Todos los archivos" desde el propio diálogo para añadir un binario sin extensión.
+ * El filtro predeterminado muestra los tipos reconocidos (.sh, .jar, .py,
+ * .AppImage, .run, .bin), pero el usuario puede cambiar a "Todos los archivos"
+ * desde el propio diálogo para elegir un binario sin extensión.
  *
  * Devuelve la ruta absoluta elegida, o null si el usuario canceló.
  *
@@ -132,7 +153,10 @@ fun pickScriptFile(): String? {
     val chooser = JFileChooser().apply {
         dialogTitle = "Selecciona el script"
         fileSelectionMode = JFileChooser.FILES_ONLY
-        fileFilter = FileNameExtensionFilter("Scripts (*.sh, *.jar)", "sh", "jar")
+        fileFilter = FileNameExtensionFilter(
+            "Scripts y ejecutables (*.sh, *.jar, *.py, *.AppImage, *.run, *.bin)",
+            "sh", "jar", "py", "AppImage", "run", "bin"
+        )
         // Arrancar en la carpeta del usuario, no en el directorio de trabajo del proceso
         currentDirectory = File(System.getProperty("user.home"))
     }

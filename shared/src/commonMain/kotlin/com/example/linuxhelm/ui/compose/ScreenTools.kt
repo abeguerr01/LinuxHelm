@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.linuxhelm.ui.ulxLib.ScriptMeta
+import com.example.linuxhelm.ui.ulxLib.needsExecuteBit
 import com.example.linuxhelm.ui.ulxLib.openScriptInTerminal
 import com.example.linuxhelm.ui.ulxLib.pickScriptFile
 import com.example.linuxhelm.ui.ulxLib.ulxDB
@@ -74,6 +75,10 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
     // Se comprueba al abrir la pantalla: si el script no está, aviso y sin "Ejecutar".
     var missingPaths by remember { mutableStateOf(emptySet<String>()) }
 
+    // Archivos que se lanzan directamente (binarios, .AppImage…) pero sin permiso +x:
+    // se avisa igual, porque en la terminal saldría "Permission denied".
+    var noExecPaths by remember { mutableStateOf(emptySet<String>()) }
+
     // Diálogos
     var addDialog by remember { mutableStateOf<AddDialogState?>(null) }
     var noTerminal by remember { mutableStateOf(false) }
@@ -82,16 +87,24 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
 
     /**
      * Recarga la lista desde la BD y comprueba en disco qué scripts ya no existen
-     * (se ejecuta todo en IO porque lee SQLite y el sistema de archivos).
+     * o les falta el permiso de ejecución (todo en IO: lee SQLite y disco).
      */
     fun reloadScripts() {
         scope.launch {
-            val (loaded, missing) = withContext(Dispatchers.IO) {
+            val (loaded, missing, noExec) = withContext(Dispatchers.IO) {
                 val all = ulxDB.getAllScripts()
-                all to all.map { it.path }.filter { !File(it).exists() }.toSet()
+                val existing = all.filter { File(it.path).exists() }
+                Triple(
+                    all,
+                    all.filterNot { File(it.path).exists() }.map { it.path }.toSet(),
+                    // Solo aplica a los que se lanzan directamente (no .sh/.jar/.py)
+                    existing.filter { needsExecuteBit(it.path) && !File(it.path).canExecute() }
+                        .map { it.path }.toSet()
+                )
             }
             scripts = loaded
             missingPaths = missing
+            noExecPaths = noExec
         }
     }
 
@@ -168,6 +181,7 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
                     ScriptItem(
                         meta = meta,
                         isMissing = meta.path in missingPaths,
+                        isNoExec = meta.path in noExecPaths,
                         onRun = { runScript(meta) },
                         onRemove = {
                             scope.launch {
@@ -262,6 +276,9 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
  * - "Ver sitio" solo aparece si el script tiene `website` en la BD.
  * - Si el archivo ya no existe en disco (`isMissing`), se muestra un aviso en rojo
  *   y se deshabilita "Ejecutar": no tiene sentido lanzar algo que ya no está.
+ * - Si es un archivo de ejecución directa sin permiso +x (`isNoExec`, p. ej. un
+ *   binario o .AppImage copiado a mano), aviso y "Ejecutar" deshabilitado: en la
+ *   terminal saldría "Permission denied". (.sh/.jar/.py no necesitan +x.)
  * - El botón de borrar (papelera) quita el registro de la BD, pero NO borra
  *   el archivo en disco: el usuario puede volver a añadirlo cuando quiera.
  */
@@ -269,6 +286,7 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
 private fun ScriptItem(
     meta: ScriptMeta,
     isMissing: Boolean,
+    isNoExec: Boolean,
     onRun: () -> Unit,
     onRemove: () -> Unit,
     onOpenWeb: () -> Unit
@@ -290,8 +308,13 @@ private fun ScriptItem(
                 )
             }
 
-            // Aviso de archivo ausente, con el mismo estilo de "salud" de ScreenInfo
-            if (isMissing) {
+            // Avisos de archivo (no encontrado / sin +x), estilo "salud" de ScreenInfo
+            val warning = when {
+                isMissing -> ulxLang.ArchivoNoEncontrado
+                isNoExec -> ulxLang.SinPermisoEjecucion
+                else -> null
+            }
+            if (warning != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Warning,
@@ -301,7 +324,7 @@ private fun ScriptItem(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = ulxLang.ArchivoNoEncontrado,
+                        text = warning,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -316,7 +339,7 @@ private fun ScriptItem(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        Button(onClick = onRun, enabled = !isMissing) {
+        Button(onClick = onRun, enabled = !isMissing && !isNoExec) {
             Text(ulxLang.Ejecutar)
         }
 

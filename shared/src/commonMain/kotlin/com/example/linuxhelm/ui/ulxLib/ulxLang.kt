@@ -28,6 +28,7 @@ object ulxLang {
     var SitioWeb = "Website (optional)"
     var SinScripts = "No scripts added yet"
     var ArchivoNoEncontrado = "File not found at the registered path"
+    var SinPermisoEjecucion = "The file has no execute permission (+x)"
     var Quitar = "Remove"
     var Ejecutar = "Run"
     var Cerrar = "Close"
