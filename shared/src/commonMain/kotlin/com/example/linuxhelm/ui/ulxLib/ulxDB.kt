@@ -134,4 +134,39 @@ object ulxDB {
                 }
         }
     }
+
+    // ==================================================
+    // ========= Ajustes (tabla settings) ===============
+    // ==================================================
+
+    /**
+     * Lee un ajuste persistido (idioma, tema…), o null si no existe todavía —
+     * en ese caso la app usa su valor por defecto (inglés / tema claro).
+     */
+    @Synchronized
+    fun getSetting(key: String): String? {
+        connect()
+        connection!!.prepareStatement("SELECT value FROM settings WHERE key = ?").use { ps ->
+            ps.setString(1, key)
+            ps.executeQuery().use { rs ->
+                return if (rs.next()) rs.getString(1) else null
+            }
+        }
+    }
+
+    /** Guarda (o reemplaza) un ajuste. */
+    @Synchronized
+    fun setSetting(key: String, value: String) {
+        connect()
+        connection!!.prepareStatement(
+            """
+            INSERT INTO settings (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """.trimIndent()
+        ).use { ps ->
+            ps.setString(1, key)
+            ps.setString(2, value)
+            ps.executeUpdate()
+        }
+    }
 }

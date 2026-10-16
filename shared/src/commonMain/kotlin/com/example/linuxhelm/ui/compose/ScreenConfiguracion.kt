@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,13 +21,20 @@ import androidx.compose.ui.unit.dp
 import com.example.linuxhelm.ui.ulxComponentes.LanguageSelector
 import com.example.linuxhelm.ui.ulxComponentes.ThemeSelector
 import com.example.linuxhelm.ui.ulxLib.ulxColor
-import com.example.linuxhelm.ui.ulxLib.ulxColorManager
 import com.example.linuxhelm.ui.ulxLib.ulxLang
-import com.example.linuxhelm.ui.ulxLib.ulxLangManager
+import com.example.linuxhelm.ui.ulxLib.ulxSettings
+import kotlinx.coroutines.launch
 
 @Preview
 @Composable
 fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
+    val scope = rememberCoroutineScope()
+
+    var selectedLang by remember { mutableStateOf(ulxSettings.lang ?: "English") }
+    var themeKey by remember { mutableStateOf(ulxSettings.theme ?: "light") }
+
+    val selectedThemeLabel = if (themeKey == "dark") ulxLang.Oscuro else ulxLang.Claro
+
     Column(
         modifier = Modifier
             .background(ulxColor.fondo)
@@ -35,9 +43,6 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        var selectedLang by remember { mutableStateOf("English") }
-        var selectedTheme by remember { mutableStateOf(ulxLang.Claro) }
-
         Column {
             // Volver a la principal (ver BotonVolver en Screen.kt)
             BotonVolver(onVolver)
@@ -49,13 +54,12 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
             Spacer(modifier = Modifier.height(20.dp))
 
             ThemeSelector(
-                currentTheme = selectedTheme,
-                onThemeChange = { theme ->
-                    selectedTheme = theme
-                    when (theme) {
-                        ulxLang.Claro -> ulxColorManager.setLight()
-                        ulxLang.Oscuro -> ulxColorManager.setDark()
-                    }
+                currentTheme = selectedThemeLabel,
+                onThemeChange = { label ->
+                    // Etiqueta del selector -> clave estable para la BD
+                    val key = if (label == ulxLang.Oscuro) "dark" else "light"
+                    themeKey = key
+                    scope.launch { ulxSettings.saveTheme(key) }
                 }
             )
 
@@ -64,13 +68,9 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
             LanguageSelector(
                 currentLang = selectedLang,
                 onLangChange = { lang ->
+                    // Literal del selector (nunca se traduce) -> clave de guardado
                     selectedLang = lang
-                    when (lang) {
-                        "English" -> ulxLangManager.setEnglish()
-                        "Español" -> ulxLangManager.setSpanish()
-                        "中文 (zhōngwén)" -> ulxLangManager.setChinese()
-                        "Português" -> ulxLangManager.setPortuguese()
-                    }
+                    scope.launch { ulxSettings.saveLang(lang) }
                 }
             )
         }
