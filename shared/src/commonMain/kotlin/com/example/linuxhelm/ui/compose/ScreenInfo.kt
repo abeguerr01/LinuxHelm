@@ -1,4 +1,4 @@
-package com.example.linuxhelm.ui.Compose
+package com.example.linuxhelm.ui.compose
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
