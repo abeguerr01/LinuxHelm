@@ -34,6 +34,9 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
 
         Text(text = ulxLang.Herramientas)
 
+
+
+
         //TODO
     }
 }

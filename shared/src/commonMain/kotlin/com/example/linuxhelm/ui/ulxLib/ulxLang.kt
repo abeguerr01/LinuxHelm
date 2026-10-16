@@ -17,4 +17,8 @@ object ulxLang {
     var Montado = "Mounted"
     var NoMontado = "Unmounted"
     var EnUso = "Used"
+    var Idioma = "Language"
+    var Tema = "Theme"
+    var Claro = "Light"
+    var Oscuro = "Dark"
 }

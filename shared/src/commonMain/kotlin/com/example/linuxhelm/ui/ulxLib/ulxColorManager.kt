@@ -3,10 +3,10 @@ package com.example.linuxhelm.ui.ulxLib
 import androidx.compose.ui.graphics.Color
 
 object ulxColorManager {
-    fun setClaro(){
+    fun setLight(){
         ulxColor.fondo = Color.White
     }
-    fun setOscuro(){
-        
+    fun setDark(){
+        ulxColor.fondo = Color.Green
     }
 }
