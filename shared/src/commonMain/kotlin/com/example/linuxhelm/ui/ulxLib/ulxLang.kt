@@ -21,4 +21,18 @@ object ulxLang {
     var Tema = "Theme"
     var Claro = "Light"
     var Oscuro = "Dark"
+    // ScreenTools
+    var AniadirScript = "Add script"
+    var Aniadir = "Add"
+    var Nombre = "Name"
+    var SitioWeb = "Website (optional)"
+    var SinScripts = "No scripts added yet"
+    var ArchivoNoEncontrado = "File not found at the registered path"
+    var Quitar = "Remove"
+    var Ejecutar = "Run"
+    var Cerrar = "Close"
+    var SinTerminal = "No terminal emulator found"
+    var SinTerminalDetalle = "Install a terminal (gnome-terminal, konsole, xterm…) to run scripts"
+    var TerminalSalioCon = "finished with exit code"
+    var TerminalPulsaTecla = "Press any key to close"
 }

@@ -19,6 +19,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation("org.jetbrains.compose.material:material-icons-core:1.7.3")
+            implementation(libs.sqlite.jdbc)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
