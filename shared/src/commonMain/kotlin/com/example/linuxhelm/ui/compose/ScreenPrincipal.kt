@@ -1,5 +1,6 @@
 package com.example.linuxhelm.ui.compose
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.linuxhelm.ui.ulxLib.ulxColor
 import com.example.linuxhelm.ui.ulxLib.ulxLang
+import linuxhelm.shared.generated.resources.Res
+import linuxhelm.shared.generated.resources.logo
+import org.jetbrains.compose.resources.painterResource
 
 @Preview
 @Composable
@@ -39,6 +45,18 @@ fun ScreenPrincipal(onNavigate: (Pantalla) -> Unit = {}) {
         // Contenido centrado en la ventana, no pegado arriba
         verticalArrangement = Arrangement.Center,
     ) {
+        // Logo de la aplicación (recurso: composeResources/drawable/logo.*)
+        // Encima de la barrita de acento, centrado con ella.
+        Image(
+            painter = painterResource(Res.drawable.logo),
+            contentDescription = "LINUX HELM",
+            modifier = Modifier
+                .size(180.dp)
+                .clip(RoundedCornerShape(16.dp))
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // Barrita de acento sobre el título
         Spacer(
             modifier = Modifier
