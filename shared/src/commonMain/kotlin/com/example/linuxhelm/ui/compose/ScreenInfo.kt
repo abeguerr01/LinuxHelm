@@ -89,6 +89,14 @@ fun ScreenInfo(onVolver: () -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        Text(
+            text = ulxLang.Informacion,
+            style = MaterialTheme.typography.headlineSmall,
+            color = ulxColor.texto
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         // Row del gestor de paquetes
         Row(
             modifier = Modifier
@@ -251,10 +259,10 @@ fun detectPackageManager(): String? {
 enum class DiskHealth { OK, WARNING, ERROR, UNKNOWN }
 
 private fun DiskHealth.color(): Color = when (this) {
-    DiskHealth.OK -> Color(0xFF66BB6A)
-    DiskHealth.WARNING -> Color(0xFFFFCA28)
-    DiskHealth.ERROR -> Color(0xFFEF5350)
-    DiskHealth.UNKNOWN -> Color(0xFFBDBDBD)
+    DiskHealth.OK -> ulxColor.exito
+    DiskHealth.WARNING -> ulxColor.aviso
+    DiskHealth.ERROR -> ulxColor.error
+    DiskHealth.UNKNOWN -> ulxColor.desconocido
 }
 
 /**

@@ -4,9 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.linuxhelm.ui.ulxComponentes.LanguageSelector
@@ -40,39 +44,52 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
             .background(ulxColor.fondo)
             .safeContentPadding()
             .fillMaxSize()
-            .padding(8.dp),
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxWidth()) {
             // Volver a la principal (ver BotonVolver en Screen.kt)
             BotonVolver(onVolver)
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Text(text = ulxLang.Configuracion)
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            ThemeSelector(
-                currentTheme = selectedThemeLabel,
-                onThemeChange = { label ->
-                    // Etiqueta del selector -> clave estable para la BD
-                    val key = if (label == ulxLang.Oscuro) "dark" else "light"
-                    themeKey = key
-                    scope.launch { ulxSettings.saveTheme(key) }
-                }
+            Text(
+                text = ulxLang.Configuracion,
+                style = MaterialTheme.typography.headlineSmall,
+                color = ulxColor.texto
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            LanguageSelector(
-                currentLang = selectedLang,
-                onLangChange = { lang ->
-                    // Literal del selector (nunca se traduce) -> clave de guardado
-                    selectedLang = lang
-                    scope.launch { ulxSettings.saveLang(lang) }
-                }
-            )
+            // Tarjeta que agrupa los ajustes
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ulxColor.div1)
+                    .padding(16.dp)
+            ) {
+                ThemeSelector(
+                    currentTheme = selectedThemeLabel,
+                    onThemeChange = { label ->
+                        // Etiqueta del selector -> clave estable para la BD
+                        val key = if (label == ulxLang.Oscuro) "dark" else "light"
+                        themeKey = key
+                        scope.launch { ulxSettings.saveTheme(key) }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                LanguageSelector(
+                    currentLang = selectedLang,
+                    onLangChange = { lang ->
+                        // Literal del selector (nunca se traduce) -> clave de guardado
+                        selectedLang = lang
+                        scope.launch { ulxSettings.saveLang(lang) }
+                    }
+                )
+            }
         }
     }
 }

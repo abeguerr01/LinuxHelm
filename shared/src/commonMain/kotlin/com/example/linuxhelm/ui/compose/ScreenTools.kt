@@ -139,6 +139,14 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        Text(
+            text = ulxLang.Herramientas,
+            style = MaterialTheme.typography.headlineSmall,
+            color = ulxColor.texto
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         // ===== Botón añadir script =====
         Button(onClick = {
             // pickScriptFile es un diálogo Swing modal: bloquea el EDT, pero
@@ -167,7 +175,13 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
             // Sin scripts registrados todavía
             scripts.isEmpty() -> Text(
                 text = ulxLang.SinScripts,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = ulxColor.textoSuave,
+                modifier = Modifier
+                    .padding(top = 24.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ulxColor.div1)
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
             )
 
             // Lista con scroll y altura máxima, como el expander de ScreenInfo
