@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=LinuxHelm
+Exec=AppRun
+Icon=linuxhelm
+Categories=Utility;
+Terminal=false
