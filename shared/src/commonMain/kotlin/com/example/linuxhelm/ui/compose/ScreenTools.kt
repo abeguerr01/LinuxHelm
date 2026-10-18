@@ -293,6 +293,8 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
  * - Si es un archivo de ejecución directa sin permiso +x (`isNoExec`, p. ej. un
  *   binario o .AppImage copiado a mano), aviso y "Ejecutar" deshabilitado: en la
  *   terminal saldría "Permission denied". (.sh/.jar/.py no necesitan +x.)
+ * - La papelera solo se muestra si `meta.deletable` es true (scripts del usuario).
+ *   Las herramientas incluidas de serie no la tienen: no se pueden borrar.
  * - El botón de borrar (papelera) quita el registro de la BD, pero NO borra
  *   el archivo en disco: el usuario puede volver a añadirlo cuando quiera.
  */
@@ -357,14 +359,17 @@ private fun ScriptItem(
             Text(ulxLang.Ejecutar)
         }
 
-        Spacer(modifier = Modifier.width(4.dp))
-
-        IconButton(onClick = onRemove) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = ulxLang.Quitar,
-                tint = MaterialTheme.colorScheme.error
-            )
+        // La papelera solo aparece para scripts del usuario: las herramientas
+        // incluidas de serie (deletable = false) no se pueden borrar.
+        if (meta.deletable) {
+            Spacer(modifier = Modifier.width(4.dp))
+            IconButton(onClick = onRemove) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = ulxLang.Quitar,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }
