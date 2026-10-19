@@ -1,0 +1,5 @@
+{
+  "name": "Resumen del sistema",
+  "description": "Muestra un resumen rápido y de solo lectura del equipo: kernel, distro, uptime, CPU, memoria y uso de los discos montados.",
+  "website": "https://github.com/abeguerr01/LinuxHelm/tree/master/ULX%20Tools/ulx-sys-overview"
+}
