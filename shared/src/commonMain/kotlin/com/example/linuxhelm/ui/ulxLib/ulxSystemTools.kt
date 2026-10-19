@@ -5,17 +5,17 @@ import java.net.URI
 import java.util.jar.JarFile
 
 /**
- * Herramienta "ULX Tools" descubierta al escanear el árbol `ULX Tools/`.
+ * Herramienta del sistema descubierta al escanear `ulxTools/`.
  *
- * El sistema es equivalente al de las herramientas "bundled" clásicas
- * (`seedBundledTools`), pero **genérico**: en vez de una lista hardcodeada se
- * escanea recursivamente una carpeta. Cada subcarpeta que contiene un `.sh`
- * se convierte en una herramienta registrada en la BD como NO borrable
- * (`deletable = 0`), igual que las incluidas de serie: la UI no muestra papelera.
+ * En vez de una lista hardcodeada, se escanea recursivamente la carpeta
+ * empaquetada `ULXTools/`. Cada subcarpeta con un ejecutable (`.sh`, `.jar`,
+ * `.py`, `.run`, `.bin`, `.AppImage` o binario sin extensión) y su
+ * `metadata.json` se convierte en una herramienta registrada en la BD como NO
+ * borrable (`deletable = 0`): la UI no muestra papelera.
  *
  * [scriptPath] es la ruta absoluta del ejecutable principal.
  * [name] / [description] / [website] salen del `metadata.json` (o `info.json`)
- * de la carpeta; si no existe el JSON, [name] es el nombre de la carpeta.
+ * de la carpeta; si falta `name`, es el nombre de la carpeta.
  */
 data class DiscoveredTool(
     val scriptPath: String,
@@ -86,7 +86,7 @@ private fun shouldBeExecutable(f: File): Boolean =
  * Regla: una carpeta (a cualquier profundidad) que contiene al menos un
  * ejecutable — `.sh`, `.jar`, `.py`, `.run`, `.bin`, `.AppImage` o un binario
  * sin extensión — es una herramienta. Vale tanto con subcarpetas directas
- * (`ULX Tools/ulx-tool/`) como con anidadas (`ULX Tools/grupo/ulx-tool/`).
+ * (`ulxTools/ulx-tool/`) como con anidadas (`ulxTools/grupo/ulx-tool/`).
  *
  * Devuelve las herramientas ordenadas por nombre. Es una función pura sobre
  * disco (sin BD), así que es fácil de testear.
@@ -219,7 +219,7 @@ fun jsonStringField(json: String, key: String): String? {
  * - `jar:`/`zip:` → recursos dentro del JAR empaquetado (`.deb`, AppImage…): se
  *              abren las entradas del JAR con el prefijo dado y se extraen una a una.
  *
- * Devuelve false si no encontró el recurso (p. ej. carpeta `ULX Tools/` vacía).
+ * Devuelve false si no encontró el recurso (p. ej. sin herramientas incluidas).
  */
 fun extractResourceTree(resourcePrefix: String, targetDir: File): Boolean {
     val cl = DiscoveredTool::class.java.classLoader

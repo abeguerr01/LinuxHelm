@@ -29,15 +29,14 @@ kotlin {
     }
 }
 
-// Incluye las herramientas de ulxTools/ como recurso del target JVM para que
-// viajen DENTRO del JAR. Así están disponibles en runtime aunque la app se
-// empaquete como .deb, .rpm, .AppImage, tar.gz o binario (el recurso viaja en
-// el classpath, no necesita la carpeta ulxTools/ en disco).
-//
-// Hay una sola copia en disco (ulxTools/), el build la empaqueta. En runtime
-// se extrae a ~/.config/ulx/LinuxHelm/tools/ y se registra en la BD.
+// Empaqueta DENTRO del JAR la carpeta ulxTools/ (cada subcarpeta = una
+// herramienta: ejecutable + metadata.json + docs) con el prefijo "ULXTools/".
+// En runtime, ulxDB.seedSystemTools() extrae el árbol a una carpeta temporal,
+// despliega SOLO el ejecutable en ~/.config/ulx/LinuxHelm/tools/ (+x) y lee el
+// metadata.json para registrar la herramienta como no borrable. Al viajar en el
+// classpath, funciona igual con run, .deb, AppImage o tar.gz.
 tasks.named<Copy>("jvmProcessResources") {
-    from(rootProject.file("ulxTools/ulxCheckDirtyDrives/ulxCheckDirtyDrives.sh")) {
-        into("ulxTools")
+    from(rootProject.file("ulxTools")) {
+        into("ULXTools")
     }
 }

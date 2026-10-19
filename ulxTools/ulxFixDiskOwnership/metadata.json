@@ -1,0 +1,5 @@
+{
+  "name": "ulxFixDiskOwnership",
+  "description": "Comprueba y corrige el propietario (p. ej. root:root) de discos y particiones secundarios montados, para que tu usuario pueda escribir en ellos.",
+  "website": "https://github.com/abeguerr01/LinuxHelm/tree/master/ulxTools/ulxFixDiskOwnership"
+}

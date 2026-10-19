@@ -25,31 +25,6 @@ data class ScriptMeta(
 )
 
 /**
- * Herramienta que se incluye de serie con la app.
- *
- * [resource] es la ruta del recurso dentro del JAR (empaquetada en el build
- * desde `ulxTools/`). [targetName] es el nombre del fichero al extraerlo a
- * `~/.config/ulx/LinuxHelm/tools/`.
- */
-private data class BundledTool(
-    val resource: String,
-    val targetName: String,
-    val name: String,
-    val description: String,
-    val website: String
-)
-
-private val bundledTools = listOf(
-    BundledTool(
-        resource = "/ulxTools/ulxCheckDirtyDrives.sh",
-        targetName = "ulxCheckDirtyDrives.sh",
-        name = "ulxCheckDirtyDrives",
-        description = "Comprueba y repara particiones NTFS \"dirty\" o hibernadas por Windows",
-        website = "https://github.com/abeguerr01/LinuxHelm/tree/master/ulxTools/ulxCheckDirtyDrives"
-    )
-)
-
-/**
  * Almacén SQLite de la aplicación, en `~/.config/ulx/LinuxHelm/lh.db` (se crea al primer arranque).
  *
  * `~/.config` es la ubicación XDG estándar para configuración de apps en Linux.
@@ -73,9 +48,14 @@ object ulxDB {
         File(configDir, "lh.db").apply { parentFile?.mkdirs() }
     }
 
-    /** Carpeta donde se extraen las herramientas incluidas de serie. */
+    /** ÚNICA carpeta destino de las herramientas del sistema: SOLO ejecutables (+x). */
     private val toolsDir: File by lazy {
         File(configDir, "tools")
+    }
+
+    /** Carpeta temporal de staging: se extrae el árbol ULXTools y se limpia al terminar. */
+    private val stagingDir: File by lazy {
+        File(configDir, ".ulx-staging")
     }
 
     private var connection: Connection? = null
@@ -114,9 +94,9 @@ object ulxDB {
             migrateScriptsTable(st)
         }
 
-        // Después de tener las tablas listas, registra (o re-registra) las
-        // herramientas incluidas de serie. Es idempotente.
-        seedBundledTools()
+        // Después de tener las tablas listas, despliega y registra las
+        // herramientas del sistema (ulxTools). Es idempotente.
+        seedSystemTools()
     }
 
     /**
@@ -141,53 +121,122 @@ object ulxDB {
         }
     }
 
+    // ==================================================
+    // ===== Herramientas del sistema (ulxTools) ========
+    // ==================================================
+
     /**
-     * Extrae las herramientas incluidas (empaquetadas dentro del JAR) a
-     * `~/.config/ulx/LinuxHelm/tools/` y las registra en la BD como no borrables.
+     * Sincroniza las herramientas del sistema empaquetadas en el JAR (fuente:
+     * `ulxTools/` en el proyecto, recurso `ULXTools/`).
      *
-     * Se extraen en cada arranque para que, al actualizar la app, la herramienta
-     * quede siempre actualizada (el recurso del JAR es la nueva versión).
-     * `ON CONFLICT(path) DO UPDATE` evita duplicados si ya existía la entrada.
+     * Flujo:
+     * 1. Extrae el árbol `ULXTools/` a una carpeta temporal de staging.
+     * 2. Escanea el staging: cada subcarpeta con un ejecutable y su `metadata.json`
+     *    es una herramienta (ver `discoverTools`).
+     * 3. Copia SOLO el ejecutable a `tools/` (plano, +x) y la registra en la BD con
+     *    `deletable = 0` (la UI no muestra papelera).
+     * 4. Elimina el staging y poda los registros/ficheros obsoletos en `tools/`.
+     *
+     * Los README NO se despliegan: `tools/` queda SOLO con ejecutables. Las
+     * herramientas del usuario (`deletable = 1`, en cualquier ruta) no se tocan.
      */
-    private fun seedBundledTools() {
-        for (tool in bundledTools) {
-            val extracted = extractResource(tool) ?: continue
-            connection!!.prepareStatement(
-                """
-                INSERT INTO scripts (name, description, website, path, deletable)
-                VALUES (?, ?, ?, ?, 0)
-                ON CONFLICT(path) DO UPDATE SET
-                    name = excluded.name,
-                    description = excluded.description,
-                    website = excluded.website,
-                    deletable = 0
-                """.trimIndent()
-            ).use { ps ->
-                ps.setString(1, tool.name)
-                ps.setString(2, tool.description)
-                ps.setString(3, tool.website)
-                ps.setString(4, extracted.absolutePath)
-                ps.executeUpdate()
+    @Synchronized
+    fun seedSystemTools() {
+        // 1) Staging limpio de cero
+        try { stagingDir.deleteRecursively() } catch (e: Exception) {}
+
+        // 2) Extraer el árbol empaquetado. Si no hay recurso (app sin herramientas
+        //    incluidas), NO hacemos nada ni tocamos lo que ya existiera.
+        val extracted = try {
+            extractResourceTree("ULXTools", stagingDir)
+        } catch (e: Exception) {
+            System.err.println("ULX: no se pudo extraer ulxTools: $e")
+            false
+        }
+        if (!extracted) return
+
+        // 3) Descubrir herramientas (ejecutable + metadata.json por subcarpeta)
+        val tools = try {
+            discoverTools(stagingDir)
+        } catch (e: Exception) {
+            System.err.println("ULX: no se pudo escanear ulxTools: $e")
+            emptyList()
+        }
+
+        // 4) Desplegar SOLO el ejecutable a tools/ (plano, +x) y registrar en BD
+        toolsDir.mkdirs()
+        val current = mutableSetOf<String>()
+        for (t in tools) {
+            val dest = File(toolsDir, File(t.scriptPath).name)
+            try {
+                File(t.scriptPath).copyTo(dest, overwrite = true)
+                dest.setExecutable(true, false)
+                current += dest.absolutePath
+                upsertSystemTool(t.copy(scriptPath = dest.absolutePath))
+            } catch (e: Exception) {
+                System.err.println("ULX: no se pudo desplegar ${t.name}: $e")
             }
+        }
+
+        // 5) Quitar staging
+        try { stagingDir.deleteRecursively() } catch (e: Exception) {}
+
+        // 6) Poda de obsoletos (registros BD + ficheros) y limpieza del legacy
+        pruneSystemTools(current)
+        cleanOrphanExecutables(current)
+        try { File(configDir, "ULX Tools").deleteRecursively() } catch (e: Exception) {}
+    }
+
+    /** Registra (o actualiza) una herramienta del sistema como NO borrable. */
+    private fun upsertSystemTool(tool: DiscoveredTool) {
+        connection!!.prepareStatement(
+            """
+            INSERT INTO scripts (name, description, website, path, deletable)
+            VALUES (?, ?, ?, ?, 0)
+            ON CONFLICT(path) DO UPDATE SET
+                name = excluded.name,
+                description = excluded.description,
+                website = excluded.website,
+                deletable = 0
+            """.trimIndent()
+        ).use { ps ->
+            ps.setString(1, tool.name)
+            ps.setString(2, tool.description)
+            ps.setString(3, tool.website)
+            ps.setString(4, tool.scriptPath)
+            ps.executeUpdate()
         }
     }
 
-    /** Copia un recurso del JAR a disco y le da permiso de ejecución. Devuelve el fichero, o null si no está. */
-    private fun extractResource(tool: BundledTool): File? {
-        val input = ulxDB::class.java.getResourceAsStream(tool.resource) ?: return null
-        val target = File(toolsDir, tool.targetName)
-        return try {
-            target.parentFile?.mkdirs()
-            input.use { ins ->
-                target.outputStream().use { out -> ins.copyTo(out) }
+    /**
+     * Borra los registros (`deletable = 0`) cuya ruta está bajo `tools/` — o bajo
+     * la carpeta legacy `ULX Tools/` de una versión anterior — y que ya no
+     * corresponden a ninguna herramienta actual. No toca herramientas del usuario.
+     */
+    private fun pruneSystemTools(current: Set<String>) {
+        val prefixes = listOf(
+            toolsDir.absolutePath + File.separator,
+            File(configDir, "ULX Tools").absolutePath + File.separator // legacy
+        )
+        val staleIds = mutableListOf<Long>()
+        connection!!.createStatement().use { st ->
+            st.executeQuery("SELECT id, path FROM scripts WHERE deletable = 0").use { rs ->
+                while (rs.next()) {
+                    val id = rs.getLong(1)
+                    val path = rs.getString(2)
+                    if (prefixes.any { path.startsWith(it) } && path !in current) staleIds += id
+                }
             }
-            target.setExecutable(true, false)
-            target
-        } catch (e: Exception) {
-            System.err.println("ULX: no se pudo extraer ${tool.targetName}: $e")
-            null
-        } finally {
-            input.close()
+            for (id in staleIds) st.executeUpdate("DELETE FROM scripts WHERE id = $id")
+        }
+    }
+
+    /** Elimina de `tools/` los ficheros que ya no son el ejecutable de ninguna herramienta actual. */
+    private fun cleanOrphanExecutables(current: Set<String>) {
+        toolsDir.listFiles { f -> f.isFile }?.forEach { f ->
+            if (f.absolutePath !in current) {
+                try { f.delete() } catch (e: Exception) {}
+            }
         }
     }
 

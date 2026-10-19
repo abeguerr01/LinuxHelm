@@ -11,7 +11,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Tests de la lógica de ULX Tools (ulxSystemTools.kt): descubrimiento recursivo,
+ * Tests de la lógica de ulxTools (ulxSystemTools.kt): descubrimiento recursivo,
  * metadatos y fallback. Todo sobre disco temporal, sin tocar la BD.
  */
 class UlxSystemToolsTest {
