@@ -108,6 +108,12 @@ Los formatos de empaquetado configurados son `.deb` y `.rpm`
 `packageAppImage`. El paquete es autocontenido: trae su propio JRE y las herramientas
 incluidas viajan **dentro del JAR** (ver [Apartado técnico](#apartado-técnico)).
 
+El nombre del paquete es **Linux Helm**: Debian y rpm no admiten mayúsculas ni
+espacios en el nombre del paquete, así que jpackage lo sanea a `linux-helm`
+(fichero `linux-helm_1.0.0_amd64.deb`, instalación en `/opt/linux-helm`, lanzador
+`/opt/linux-helm/bin/Linux Helm`), mientras que el menú de aplicaciones sí muestra
+**"Linux Helm"**.
+
 ---
 
 ## Cómo usar la aplicación

@@ -102,6 +102,12 @@ plus the custom `packageTarGz` and `packageAppImage` tasks. The package is
 self-contained: it ships its own JRE and
 the bundled tools travel **inside the JAR** (see [Technical section](#technical-section)).
 
+The package name is **Linux Helm**: Debian and rpm package names cannot contain
+uppercase or spaces, so jpackage sanitizes it to `linux-helm` (file
+`linux-helm_1.0.0_amd64.deb`, installed under `/opt/linux-helm`, launcher
+`/opt/linux-helm/bin/Linux Helm`), while the applications menu does show
+**"Linux Helm"**.
+
 ---
 
 ## How to use the application

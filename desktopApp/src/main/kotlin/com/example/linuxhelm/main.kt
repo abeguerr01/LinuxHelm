@@ -32,7 +32,7 @@ fun main() {
 
         Window(
             onCloseRequest = ::exitApplication,
-            title = "LinuxHelm",
+            title = "Linux Helm",
             state = ventana,
         ) {
             App()

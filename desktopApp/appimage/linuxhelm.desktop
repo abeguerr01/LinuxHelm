@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=LinuxHelm
+Name=Linux Helm
 Exec=AppRun
 Icon=linuxhelm
 Categories=Utility;

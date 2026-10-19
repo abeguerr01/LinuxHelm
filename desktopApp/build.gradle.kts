@@ -23,8 +23,23 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Rpm)
-            packageName = "com.example.linuxhelm"
+            // "Linux Helm": jpackage sanea el nombre para el PAQUETE Debian/rpm
+            // (no admiten mayúsculas ni espacios → "linux-helm", fichero
+            // linux-helm_1.0.0_amd64.deb, instalación en /opt/linux-helm), pero
+            // conserva el original para lo visible: el .desktop del menú de
+            // aplicaciones muestra "Name=Linux Helm".
+            packageName = "Linux Helm"
             packageVersion = "1.0.0"
+            description = "Linux Helm - lanzador de scripts y panel de información del sistema"
+            vendor = "LinuxHelm"
+            linux {
+                // Categoría del menú de aplicaciones (.desktop "Categories=";
+                // appCategory solo afecta al "Section:" del .deb)
+                menuGroup = "Utility"
+                // Maintainer del .deb: jpackage compone "vendor <debMaintainer>",
+                // así que aquí va solo el email (política Debian: "Nombre <email>")
+                debMaintainer = "71718967+abeguerr01@users.noreply.github.com"
+            }
         }
     }
 }
@@ -37,7 +52,7 @@ val packageTarGz = tasks.register<Tar>("packageTarGz") {
     dependsOn("createDistributable")
 
     val arch = System.getProperty("os.arch").let { if (it == "amd64") "x86_64" else it }
-    archiveFileName.set("linuxhelm-1.0.0-linux-$arch.tar.gz")
+    archiveFileName.set("linux-helm-1.0.0-linux-$arch.tar.gz")
     destinationDirectory.set(layout.buildDirectory.dir("compose/binaries/main/tar"))
     from(layout.buildDirectory.dir("compose/binaries/main/app"))
     compression = Compression.GZIP
@@ -69,7 +84,7 @@ val prepareAppImageDir = tasks.register<Sync>("prepareAppImageDir") {
     description = "Prepara el directorio AppDir para el AppImage"
     dependsOn(cleanAppImageDir, "createDistributable")
 
-    from(layout.buildDirectory.dir("compose/binaries/main/app/com.example.linuxhelm"))
+    from(layout.buildDirectory.dir("compose/binaries/main/app/Linux Helm"))
     from(layout.projectDirectory.dir("appimage"))
     from(rootProject.file("shared/src/commonMain/composeResources/drawable/logo.png")) {
         rename { "linuxhelm.png" }
@@ -85,7 +100,7 @@ val packageAppImage = tasks.register<Exec>("packageAppImage") {
 
     val appDir = layout.buildDirectory.dir("compose/binaries/main/appimage/AppDir")
     val outputFile = layout.buildDirectory.file(
-        "compose/binaries/main/appimage/linuxhelm-1.0.0-linux-$appImageArch.AppImage"
+        "compose/binaries/main/appimage/linux-helm-1.0.0-linux-$appImageArch.AppImage"
     )
     inputs.dir(appDir)
     outputs.file(outputFile)
