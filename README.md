@@ -93,11 +93,20 @@ Detalles útiles:
 
 # Empaquetar para el sistema actual (en Linux genera un .deb)
 ./gradlew :desktopApp:packageDistributionForCurrentOS
+# Empaquetar todos los formatos de Linux de una vez (ver empaquetar.sh)
+./empaquetar.sh
 ```
 
-Los formatos de empaquetado configurados son `.deb`, `.dmg` y `.msi`
-(`desktopApp/build.gradle.kts`). El paquete es autocontenido: trae su propio JRE y las
-herramientas incluidas viajan **dentro del JAR** (ver [Apartado técnico](#apartado-técnico)).
+La script `empaquetar.sh` compila en un solo paso **todos** los formatos —uber-jar,
+`.deb`, `.rpm`, `.tar.gz` y `.AppImage`—, verifica que cada fichero se generó de verdad
+y los deja en la carpeta `dist/`. Si falta alguna herramienta opcional del sistema
+(`rpmbuild`, `appimagetool`), ese formato se omite con un aviso y el resto se compila
+igual.
+
+Los formatos de empaquetado configurados son `.deb` y `.rpm`
+(`desktopApp/build.gradle.kts`), más las tareas propias `packageTarGz` y
+`packageAppImage`. El paquete es autocontenido: trae su propio JRE y las herramientas
+incluidas viajan **dentro del JAR** (ver [Apartado técnico](#apartado-técnico)).
 
 ---
 
@@ -234,9 +243,8 @@ LinuxHelm/
 │       │   │   ├── ScreenPrincipal.kt     # Menú principal
 │       │   │   ├── ScreenInfo.kt          # Discos, paquetes, chequeos
 │       │   │   ├── ScreenTools.kt         # Lanzador de scripts
-│       │   │   ├── ScreenConfiguracion.kt # Idioma, tema y escala
-│       │   │   └── Test.kt                # Pantalla de pruebas (fuera del flujo)
-│       │   ├── ulxComponentes/        # LanguageSelector, ThemeSelector, EscalaSelector
+│       │   │   └── ScreenConfiguracion.kt # Idioma, tema y escala
+│       │   ├── ulxComponentes/        # MenuSelector (desplegable genérico de ajustes)
 │       │   └── ulxLib/                # Infraestructura (ver abajo)
 │       └── composeResources/          # logo, etc.
 ├── ulxTools/              # Herramientas del sistema (ver ulxTools/README.md)

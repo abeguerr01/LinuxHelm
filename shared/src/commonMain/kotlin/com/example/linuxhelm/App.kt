@@ -27,12 +27,9 @@ fun App() {
     // Vive aquí (en la raíz) para que todas las pantallas puedan usarlo.
     var pantalla by remember { mutableStateOf(Pantalla.Principal) }
 
-    // Escala de interfaz (ajustable en Configuración): se multiplica la
-    // densidad de TODO el contenido. Como dp->px y sp->px (via toDp()) usan
-    // `density`, el factor aplica por igual a cajas, iconos y texto. `fontScale`
-    // se pasa tal cual para no aplicar la escala dos veces al texto.
-    // Se resuelve dentro de Compose porque Java en Linux ignora las escalas
-    // fraccionadas del sistema (solo 1x/2x con sun.java2d.uiScale).
+    // Escala de interfaz (Configuración): se multiplica la densidad de TODO el
+    // contenido (dp, sp e iconos usan `density`); `fontScale` va tal cual para
+    // no doblar el texto. El "por qué" está documentado en ulxSettings.escala.
     val density = LocalDensity.current
     val escala = ulxSettings.escala
     CompositionLocalProvider(

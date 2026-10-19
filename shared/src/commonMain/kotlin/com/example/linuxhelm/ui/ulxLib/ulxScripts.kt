@@ -143,31 +143,22 @@ fun openScriptInTerminal(path: String, args: List<String> = emptyList()): Boolea
  *
  * Estrategia en tres capas, de más a menos nativa:
  *
- * 1. **kdialog** (KDE): el diálogo Qt nativo del escritorio — el mismo "Abrir"
- *    que usa Dolphin, con aspecto idéntico al de Windows.
- * 2. **zenity** (GNOME, XFCE y otros): el diálogo GTK nativo.
- * 3. **`JFileChooser`** del propio JDK si el equipo no trae ninguno de los dos
- *    (escritorios mínimos), con aspecto **GTK** y **tamaño relativo** a la
- *    pantalla (~70%): el tamaño de fábrica (~640x480 fijo) se veía enorme
- *    junto a la ventana de la app.
+ * 1. **kdialog** (KDE): diálogo Qt nativo de escritorio.
+ * 2. **zenity** (GNOME, XFCE y otros): diálogo GTK nativo.
+ * 3. **`JFileChooser`** del JDK si no hay ninguno de los dos (escritorios
+ *    mínimos), con aspecto GTK y tamaño relativo a la pantalla.
  *
  * kdialog y zenity son procesos aparte: el resultado vuelve por su **stdout**
  * (la ruta elegida) y su **código de salida** (0 = aceptado, 1 = cancelado).
- * Verificado en la máquina real: sin D-Bus ni señales que puedan perderse.
- *
- * (Antes se usaba el XDG Desktop Portal vía `gdbus` + `dbus-monitor`: quedó
- * descartado tras comprobar en el bus real que la señal `Request.Response` se
- * entrega en *unicast* al proceso `gdbus` llamador —que muere al devolver la
- * ruta del objeto—, de modo que ningún oyente externo la recibe jamás y la app
- * se quedaba esperando eternamente. Con CLI puro, esa vía es insalvable.)
+ * (El XDG Desktop Portal vía gdbus quedó descartado: su señal Response va en
+ * unicast al proceso llamador, que muere tras responder; detalle en el README.)
  *
  * Un **cancelar nunca abre el siguiente diálogo**: si el usuario cerró el
  * nativo, devolvemos null y ya.
  *
- * NOTA: es bloqueante, pero NO va en `Dispatchers.IO`: los diálogos Swing se tienen
- * que mostrar en el EDT. Un diálogo modal bombea sus propios eventos mientras está
- * abierto, así que la UI no se congela aunque el hilo espere a la respuesta. El
- * `onClick` de Compose Desktop ya corre en el EDT, así que se llama directamente.
+ * Es bloqueante, pero NO va en `Dispatchers.IO`: se espera la respuesta en el
+ * EDT (el `onClick` de Compose Desktop ya corre ahí). Los diálogos externos son
+ * ventanas de otro proceso, así que siguen respondiendo aunque la app no repinte.
  */
 fun pickScriptFile(): String? {
     // 1) kdialog: diálogo Qt nativo de KDE (donde vive el usuario de la app).

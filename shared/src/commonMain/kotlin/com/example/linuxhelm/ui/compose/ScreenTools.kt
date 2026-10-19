@@ -55,7 +55,7 @@ import java.io.File
 
 /**
  * Estado del diálogo "Añadir script": nombre + web que el usuario rellena
- * para el archivo que acaba de elegir con el JFileChooser.
+ * para el archivo que acaba de elegir con el diálogo nativo.
  */
 private data class AddDialogState(
     val path: String,
@@ -93,14 +93,17 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
         scope.launch {
             val (loaded, missing, noExec) = withContext(Dispatchers.IO) {
                 val all = ulxDB.getAllScripts()
-                val existing = all.filter { File(it.path).exists() }
-                Triple(
-                    all,
-                    all.filterNot { File(it.path).exists() }.map { it.path }.toSet(),
+                // Una sola pasada por disco (antes se comprobaba exists() dos veces
+                // por script: una para "missing" y otra para "noExec")
+                val missing = mutableSetOf<String>()
+                val noExec = mutableSetOf<String>()
+                for (s in all) {
+                    val f = File(s.path)
+                    if (!f.exists()) missing += s.path
                     // Solo aplica a los que se lanzan directamente (no .sh/.jar/.py)
-                    existing.filter { needsExecuteBit(it.path) && !File(it.path).canExecute() }
-                        .map { it.path }.toSet()
-                )
+                    else if (needsExecuteBit(s.path) && !f.canExecute()) noExec += s.path
+                }
+                Triple(all, missing, noExec)
             }
             scripts = loaded
             missingPaths = missing
@@ -149,8 +152,9 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
 
         // ===== Botón añadir script =====
         Button(onClick = {
-            // pickScriptFile es un diálogo Swing modal: bloquea el EDT, pero
-            // bombea sus eventos, así que la UI no se congela.
+            // pickScriptFile prueba primero los diálogos externos (kdialog/zenity)
+            // y, si no hay ninguno, el JFileChooser de Swing. Es bloqueante: el
+            // clic corre en el EDT y la espera no impide al diálogo responder.
             val path = pickScriptFile() ?: return@Button
             addDialog = AddDialogState(
                 path = path,

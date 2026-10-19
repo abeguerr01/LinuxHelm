@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Ajustes globales de la app (idioma y tema), con doble vida:
+ * Ajustes globales de la app (idioma, tema y escala de interfaz), con doble vida:
  *
  * 1. **Caché en memoria**: valores leídos una vez al arrancar; la UI los lee
  *    sin tocar disco (nada de queries SQLite dentro de composiciones).
@@ -20,13 +20,13 @@ import kotlinx.coroutines.withContext
  *
  * Flujo:
  * - `main.kt` llama a `loadAndApply()` ANTES de `application {}`, así la primera
- *   ventana ya sale con el idioma y tema guardados (sin parpadeo de defaults).
+ *   ventana ya sale con los ajustes guardados (sin parpadeo de defaults).
  * - Al cambiar ajustes en Configuración, la pantalla llama a `saveLang()` /
- *   `saveTheme()`: actualiza caché + aplica + persiste en IO.
+ *   `saveTheme()` / `saveEscala()`: actualiza caché + aplica + persiste en IO.
  */
 object ulxSettings {
 
-    /** Idioma: literal del LanguageSelector ("English", "Español"…). */
+    /** Idioma: literal del selector de idioma ("English", "Español"…). */
     var lang: String? = null
         private set
 
@@ -78,40 +78,36 @@ object ulxSettings {
     suspend fun saveLang(value: String) {
         lang = value
         ulxLangManager.applySaved(value)
-        withContext(Dispatchers.IO) {
-            try {
-                ulxDB.setSetting("lang", value)
-            } catch (e: Exception) {
-                System.err.println("ULX: no se pudo guardar el idioma: $e")
-            }
-        }
+        persistir("lang", value, "el idioma")
     }
 
     /** Persiste y aplica el tema ("light"/"dark"). Seguro para la UI: la BD va a IO. */
     suspend fun saveTheme(value: String) {
         theme = value
         ulxColorManager.applySaved(value)
-        withContext(Dispatchers.IO) {
-            try {
-                ulxDB.setSetting("theme", value)
-            } catch (e: Exception) {
-                System.err.println("ULX: no se pudo guardar el tema: $e")
-            }
-        }
+        persistir("theme", value, "el tema")
     }
 
     /**
-     * Persiste y aplica la escala de interfaz (1.0 = 100%). La escritura es en
-     * IO; la caché observable se actualiza ya, así la UI cambia de tamaño en
-     * caliente mientras la BD confirma en segundo plano.
+     * Persiste y aplica la escala de interfaz (1.0 = 100%). La caché observable
+     * se actualiza ya, así la UI cambia de tamaño en caliente mientras la BD
+     * confirma en segundo plano.
      */
     suspend fun saveEscala(value: Float) {
         escala = value
+        persistir("escala", value.toString(), "la escala")
+    }
+
+    /**
+     * Escribe un ajuste en la BD sin dejar que un fallo (BD ilegible, HOME raro…)
+     * rompa la UI: la caché ya está actualizada; persistir es "mejor esfuerzo".
+     */
+    private suspend fun persistir(clave: String, valor: String, queEs: String) {
         withContext(Dispatchers.IO) {
             try {
-                ulxDB.setSetting("escala", value.toString())
+                ulxDB.setSetting(clave, valor)
             } catch (e: Exception) {
-                System.err.println("ULX: no se pudo guardar la escala: $e")
+                System.err.println("ULX: no se pudo guardar $queEs: $e")
             }
         }
     }

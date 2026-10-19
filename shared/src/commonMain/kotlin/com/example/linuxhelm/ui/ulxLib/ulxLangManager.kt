@@ -136,10 +136,10 @@ object ulxLangManager {
     /**
      * Aplica el idioma guardado en la BD.
      *
-     * Se guarda el literal del propio LanguageSelector ("English", "Español",
-     * "中文 (zhōngwén)", "Português"): son valores fijos del código que nunca se
-     * traducen, así que sirven de clave estable entre sesiones.
-     * Cualquier otro valor (o null) deja el inglés, el valor por defecto.
+     * Se guarda el literal propio del selector de idioma ("English", "Español",
+     * "中文 (zhōngwén)", "Português" — ver ScreenConfiguracion): son valores
+     * fijos del código que nunca se traducen, así que sirven de clave estable
+     * entre sesiones. Cualquier otro valor (o null) deja el inglés por defecto.
      */
     fun applySaved(lang: String?) {
         when (lang) {

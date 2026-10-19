@@ -22,9 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.linuxhelm.ui.ulxComponentes.EscalaSelector
-import com.example.linuxhelm.ui.ulxComponentes.LanguageSelector
-import com.example.linuxhelm.ui.ulxComponentes.ThemeSelector
+import com.example.linuxhelm.ui.ulxComponentes.MenuSelector
 import com.example.linuxhelm.ui.ulxLib.ulxColor
 import com.example.linuxhelm.ui.ulxLib.ulxLang
 import com.example.linuxhelm.ui.ulxLib.ulxSettings
@@ -75,9 +73,11 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
                     .background(ulxColor.div1)
                     .padding(16.dp)
             ) {
-                ThemeSelector(
-                    currentTheme = selectedThemeLabel,
-                    onThemeChange = { label ->
+                MenuSelector(
+                    etiqueta = ulxLang.Tema,
+                    opciones = listOf(ulxLang.Claro, ulxLang.Oscuro),
+                    actual = selectedThemeLabel,
+                    onSeleccionar = { label ->
                         // Etiqueta del selector -> clave estable para la BD
                         val key = if (label == ulxLang.Oscuro) "dark" else "light"
                         themeKey = key
@@ -87,10 +87,12 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                LanguageSelector(
-                    currentLang = selectedLang,
-                    onLangChange = { lang ->
-                        // Literal del selector (nunca se traduce) -> clave de guardado
+                // Los literales de idioma NUNCA se traducen: son la clave de guardado
+                MenuSelector(
+                    etiqueta = ulxLang.Idioma,
+                    opciones = listOf("English", "Español", "中文 (zhōngwén)", "Português"),
+                    actual = selectedLang,
+                    onSeleccionar = { lang ->
                         selectedLang = lang
                         scope.launch { ulxSettings.saveLang(lang) }
                     }
@@ -100,11 +102,15 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
 
                 // Escala de interfaz: se guarda como factor (1.5) y la UI se
                 // reescala en caliente (observable en ulxSettings.escala).
-                EscalaSelector(
-                    currentEscala = escalaLabel,
-                    onEscalaChange = { label ->
+                // Los porcentajes son universales (no se traducen), así que
+                // funcionan de clave y de etiqueta a la vez: "150%" -> 1.5f.
+                MenuSelector(
+                    etiqueta = ulxLang.Escala,
+                    opciones = listOf("100%", "125%", "150%", "175%", "200%"),
+                    actual = escalaLabel,
+                    onSeleccionar = { label ->
                         escalaLabel = label
-                        // "150%" -> 1.5f ("basura" -> 1.0f por defecto)
+                        // "basura" -> 1.0f por defecto
                         val factor = (label.removeSuffix("%").toFloatOrNull()
                             ?: 100f) / 100f
                         scope.launch { ulxSettings.saveEscala(factor) }

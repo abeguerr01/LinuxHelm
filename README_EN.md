@@ -88,10 +88,18 @@ Useful details:
 
 # Package for the current OS (produces a .deb on Linux)
 ./gradlew :desktopApp:packageDistributionForCurrentOS
+# Package every Linux format at once (see empaquetar.sh)
+./empaquetar.sh
 ```
 
-Configured packaging formats are `.deb`, `.dmg` and `.msi`
-(`desktopApp/build.gradle.kts`). The package is self-contained: it ships its own JRE and
+The `empaquetar.sh` script builds **every** format in one step — uber-jar, `.deb`,
+`.rpm`, `.tar.gz` and `.AppImage` —, verifies that each file was actually produced and
+leaves them in the `dist/` folder. If an optional system tool is missing (`rpmbuild`,
+`appimagetool`), that format is skipped with a warning and the rest still builds.
+
+Configured packaging formats are `.deb` and `.rpm` (`desktopApp/build.gradle.kts`),
+plus the custom `packageTarGz` and `packageAppImage` tasks. The package is
+self-contained: it ships its own JRE and
 the bundled tools travel **inside the JAR** (see [Technical section](#technical-section)).
 
 ---
@@ -226,9 +234,8 @@ LinuxHelm/
 │       │   │   ├── ScreenPrincipal.kt     # Home menu
 │       │   │   ├── ScreenInfo.kt          # Disks, packages, health checks
 │       │   │   ├── ScreenTools.kt         # Script launcher
-│       │   │   ├── ScreenConfiguracion.kt # Language, theme and scale
-│       │   │   └── Test.kt                # Test screen (outside the flow)
-│       │   ├── ulxComponentes/        # LanguageSelector, ThemeSelector, EscalaSelector
+│       │   │   └── ScreenConfiguracion.kt # Language, theme and scale
+│       │   ├── ulxComponentes/        # MenuSelector (generic settings dropdown)
 │       │   └── ulxLib/                # Infrastructure (see below)
 │       └── composeResources/          # logo, etc.
 ├── ulxTools/              # System tools (see ulxTools/README.md)

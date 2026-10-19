@@ -252,7 +252,7 @@ object ulxDB {
      * para editarlo, sin necesidad de pantalla de edición aparte.
      *
      * Por defecto `deletable = true` (script del usuario). Las herramientas
-     * incluidas de serie se registran con `false` vía `seedBundledTools()`.
+     * incluidas de serie se registran con `false` vía `seedSystemTools()`.
      */
     @Synchronized
     fun upsertScript(name: String, website: String?, path: String) {

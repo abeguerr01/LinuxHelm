@@ -237,20 +237,19 @@ fun ScreenInfo(onVolver: () -> Unit = {}) {
 // ======================================================
 
 /**
- * Función para detectar el gestor de paquetes con ProcessBuilder
+ * Detecta el gestor de paquetes instalado, en orden de preferencia.
+ *
+ * Escanea el PATH en memoria (como `isOnPath` de ulxScripts) en vez de lanzar
+ * `sh -c which ...`: mismo resultado, sin crear un proceso. Se llama dentro de
+ * `remember {}` al componer, así que debe ser barata.
+ *
+ * Devuelve el nombre del primer candidato encontrado, o null si no hay ninguno.
  */
 fun detectPackageManager(): String? {
-    return try {
-        val result = ProcessBuilder("sh", "-c", "which apt dnf pacman zypper emerge 2>/dev/null")
-            .redirectErrorStream(true)
-            .start()
-            .inputStream.bufferedReader().readLines()
-            .firstOrNull { it.isNotBlank() }
-
-        result?.substringAfterLast('/')
-    } catch (e: Exception) {
-        null
-    }
+    val path = System.getenv("PATH") ?: return null
+    val dirs = path.split(File.pathSeparator).filter { it.isNotBlank() }
+    return listOf("apt", "dnf", "pacman", "zypper", "emerge")
+        .firstOrNull { exe -> dirs.any { dir -> File(dir, exe).canExecute() } }
 }
 
 /**

@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -18,8 +18,6 @@ import com.example.linuxhelm.ui.ulxLib.ulxLang
  *
  * [Pantalla.Principal] es la raíz: desde ahí se llega al resto y
  * desde cualquier otra se vuelve pulsando el botón de volver.
- *
- * `Test` no está aquí a propósito: es una pantalla de pruebas, no forma parte del flujo.
  */
 enum class Pantalla {
     Principal,
@@ -47,7 +45,7 @@ enum class Pantalla {
 fun BotonVolver(onVolver: () -> Unit) {
     Button(onClick = onVolver) {
         Icon(
-            imageVector = Icons.Default.ArrowBack,
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = null,
             modifier = Modifier.size(18.dp)
         )
