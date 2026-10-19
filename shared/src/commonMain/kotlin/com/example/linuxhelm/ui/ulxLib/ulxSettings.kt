@@ -1,5 +1,8 @@
 package com.example.linuxhelm.ui.ulxLib
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,6 +35,20 @@ object ulxSettings {
         private set
 
     /**
+     * Escala de interfaz (1.0 = 100%, 1.5 = 150%…). Es **observable**
+     * (`mutableStateOf`): al cambiarla desde Configuración, `main.kt` y `App.kt`
+     * se recomponen y toda la UI (y la ventana) se reescalan en caliente, sin
+     * reiniciar.
+     *
+     * Existe porque Java en Linux NO soporta escalas fraccionadas del sistema
+     * (1.5 se ignora, solo 1x/2x vía `sun.java2d.uiScale`): en monitores HiDPI
+     * la app se renderizaba diminuta. Resolviéndolo dentro de Compose funciona
+     * en X11 y Wayland y no depende de cómo se lance la JVM.
+     */
+    var escala by mutableStateOf(1.0f)
+        private set
+
+    /**
      * Lee los ajustes de la BD y los aplica a los managers.
      *
      * Bloqueante (JDBC): por eso se llama desde main() ANTES de arrancar la UI,
@@ -42,10 +59,16 @@ object ulxSettings {
         try {
             lang = ulxDB.getSetting("lang")
             theme = ulxDB.getSetting("theme")
+            // Valor guardado como texto ("1.25"); cualquier basura vuelve a 1.0.
+            escala = ulxDB.getSetting("escala")
+                ?.toFloatOrNull()
+                ?.coerceIn(0.5f, 4f)
+                ?: 1.0f
         } catch (e: Exception) {
             System.err.println("ULX: no se pudieron leer los ajustes: $e")
             lang = null
             theme = null
+            escala = 1.0f
         }
         ulxLangManager.applySaved(lang)
         ulxColorManager.applySaved(theme)
@@ -73,6 +96,22 @@ object ulxSettings {
                 ulxDB.setSetting("theme", value)
             } catch (e: Exception) {
                 System.err.println("ULX: no se pudo guardar el tema: $e")
+            }
+        }
+    }
+
+    /**
+     * Persiste y aplica la escala de interfaz (1.0 = 100%). La escritura es en
+     * IO; la caché observable se actualiza ya, así la UI cambia de tamaño en
+     * caliente mientras la BD confirma en segundo plano.
+     */
+    suspend fun saveEscala(value: Float) {
+        escala = value
+        withContext(Dispatchers.IO) {
+            try {
+                ulxDB.setSetting("escala", value.toString())
+            } catch (e: Exception) {
+                System.err.println("ULX: no se pudo guardar la escala: $e")
             }
         }
     }

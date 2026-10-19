@@ -1,7 +1,10 @@
 package com.example.linuxhelm.ui.ulxLib
 
+import java.awt.Dimension
+import java.awt.Toolkit
 import java.io.File
 import javax.swing.JFileChooser
+import javax.swing.UIManager
 import javax.swing.filechooser.FileNameExtensionFilter
 
 /**
@@ -135,9 +138,20 @@ fun openScriptInTerminal(path: String, args: List<String> = emptyList()): Boolea
 }
 
 /**
- * Abre un diálogo nativo para elegir UN archivo ejecutable.
+ * Abre un diálogo para elegir UN archivo ejecutable.
  *
- * Usa `JFileChooser` (del propio JDK, sin dependencias extra).
+ * Usa `JFileChooser` (del propio JDK, sin dependencias extra), pero con dos
+ * retoques importantes:
+ *
+ * - **Aspecto GTK**: en Linux se aplica el L&F GTK del propio JDK mientras
+ *   dura el diálogo, así que el chooser pinta como el resto de apps de GNOME
+ *   en vez del aspecto Metal genérico. Si GTK no está disponible (u otro SO),
+ *   se ignora en silencio y se usa el L&F actual. El L&F anterior se restaura
+ *   al cerrar.
+ * - **Tamaño relativo a la pantalla** (~70%), con suelos y techos razonables:
+ *   el tamaño de fábrica (~640x480 fijo) se veía ENORME comparado con la
+ *   ventana de la app en pantallas grandes, y diminuto en pantallas pequeñas.
+ *
  * El filtro predeterminado muestra los tipos reconocidos (.sh, .jar, .py,
  * .AppImage, .run, .bin), pero el usuario puede cambiar a "Todos los archivos"
  * desde el propio diálogo para elegir un binario sin extensión.
@@ -150,6 +164,14 @@ fun openScriptInTerminal(path: String, args: List<String> = emptyList()): Boolea
  * `onClick` de Compose Desktop ya corre en el EDT, así que se llama directamente.
  */
 fun pickScriptFile(): String? {
+    // L&F GTK solo mientras dure el diálogo; se restaura el anterior después.
+    val lafAnterior = UIManager.getLookAndFeel()
+    try {
+        UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel")
+    } catch (e: Exception) {
+        // Sin GTK (u otro SO): nos quedamos con el L&F actual.
+    }
+
     val chooser = JFileChooser().apply {
         dialogTitle = "Selecciona el script"
         fileSelectionMode = JFileChooser.FILES_ONLY
@@ -159,8 +181,23 @@ fun pickScriptFile(): String? {
         )
         // Arrancar en la carpeta del usuario, no en el directorio de trabajo del proceso
         currentDirectory = File(System.getProperty("user.home"))
+        // Tamaño proporcional a la pantalla (con suelos/techos): ni el fijo de
+        // fábrica ni un gigante en pantallas grandes.
+        val pantalla = Toolkit.getDefaultToolkit().screenSize
+        preferredSize = Dimension(
+            (pantalla.width * 0.7).toInt().coerceIn(640, 1100),
+            (pantalla.height * 0.72).toInt().coerceIn(480, 760)
+        )
     }
 
-    val result = chooser.showOpenDialog(null)
+    val result = try {
+        chooser.showOpenDialog(null)
+    } finally {
+        try {
+            UIManager.setLookAndFeel(lafAnterior)
+        } catch (e: Exception) {
+            // Restaurar el L&F es cosmético: nunca debe romper la selección.
+        }
+    }
     return if (result == JFileChooser.APPROVE_OPTION) chooser.selectedFile.absolutePath else null
 }

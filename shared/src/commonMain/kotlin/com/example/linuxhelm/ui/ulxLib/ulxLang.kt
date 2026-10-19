@@ -21,6 +21,7 @@ object ulxLang {
     var Tema = "Theme"
     var Claro = "Light"
     var Oscuro = "Dark"
+    var Escala = "Interface scale"
     // ScreenTools
     var AniadirScript = "Add script"
     var Aniadir = "Add"
