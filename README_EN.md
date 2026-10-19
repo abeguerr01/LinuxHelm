@@ -5,13 +5,15 @@
 **LinuxHelm** is a desktop application for Linux built with **Kotlin** and
 **Compose Multiplatform**. It works as a system utilities panel: it shows information
 about your machine (package manager, disks and their health status), lets you
-**add and run scripts** from a graphical interface, and ships with the
-`ulxCheckDirtyDrives` tool to fix NTFS partitions left "dirty" by Windows.
+**add and run scripts** from a graphical interface, and ships with two system tools:
+`ulxCheckDirtyDrives` (fixes NTFS partitions left "dirty" by Windows) and
+`ulxFixDiskOwnership` (fixes secondary disks mounted with the `root:root` owner).
 
 - Multilingual: **English**, **Español**, **中文**, **Português** (English by default).
 - **Light** and **dark** theme, persisted between sessions.
 - Scripts and settings are stored in SQLite (`~/.config/ulx/LinuxHelm/lh.db`), so they
   survive restarts.
+- Adjustable **UI scale** (100–200%) for HiDPI screens, applied live and persisted.
 
 ---
 
@@ -21,7 +23,7 @@ about your machine (package manager, disks and their health status), lets you
 - [Requirements](#requirements)
 - [Building and running](#building-and-running)
 - [How to use the application](#how-to-use-the-application)
-- [Bundled tool: ulxCheckDirtyDrives](#bundled-tool-ulxcheckdirtydrives)
+- [Bundled tools](#bundled-tools)
 - [Technical section](#technical-section)
 - [Project structure](#project-structure)
 - [Tests](#tests)
@@ -35,7 +37,7 @@ about your machine (package manager, disks and their health status), lets you
 | **Home** | Menu with the app logo and access to every screen. |
 | **Information** | Detected package manager (with a link to its wiki) and a disk list with size, usage and health status (quick and deep check). |
 | **Tools** | Script launcher: add `.sh`, `.jar`, `.py`, `.AppImage`, binaries… and run them in a system terminal. |
-| **Settings** | Language and theme (light/dark) selectors, saved instantly. |
+| **Settings** | Language, theme (light/dark) and UI scale (100–200%) selectors, saved instantly. |
 
 Useful details:
 
@@ -62,6 +64,8 @@ Useful details:
   filesystem tools (`e2fsprogs`, `ntfs-3g`, `dosfstools`, `btrfs-progs`).
 - For the bundled `ulxCheckDirtyDrives` tool: the **`ntfs-3g`** package
   (`sudo apt install ntfs-3g`).
+- Optional, for the native file picker: **`kdialog`** (KDE) or **`zenity`** (GNOME and
+  others). With neither installed, the dialog built into the app is used.
 
 **To build from source**:
 
@@ -125,9 +129,11 @@ On launch you see the menu with three buttons: **Information**, **Tools** and
 
 This is the heart of the app: your script launcher.
 
-1. Click **Add script** and pick the file with the system dialog.
-   Supported: `.sh`, `.jar`, `.py`, `.AppImage`, `.run`, `.bin` and extensionless
-   binaries (switch the dialog filter to "All files").
+1. Click **Add script** and pick the file with the **desktop-native dialog** (KDE's Qt
+   dialog via `kdialog`, GNOME's GTK dialog via `zenity`, or the dialog built into the
+   app as a last resort). Supported: `.sh`, `.jar`, `.py`, `.AppImage`, `.run`, `.bin`
+   and extensionless binaries — the native dialog applies no type filter, so every
+   file is visible.
 2. In the dialog, type the **Name** (pre-filled with the file name) and, optionally, a
    **Website** (e.g. the project's page).
 3. In the list, click **Run**: a terminal window opens with the script running. When it
@@ -154,28 +160,39 @@ and the **Run** button is disabled.
 
 ### Settings
 
-Two dropdowns inside a card:
+Three controls inside a card:
 
 - **Theme**: Light / Dark. The change is **live** (the UI repaints instantly) and
   persisted.
 - **Language**: English / Español / 中文 / Português. Applied instantly to every string
   in the interface, also persisted.
+- **Scale**: 100% / 125% / 150% / 175% / 200%. Multiplies the whole UI (and the window
+  size) by the chosen factor; useful on HiDPI screens. Also applied live.
 
-Both settings are stored in the database; the next time you open the app they are
+All three settings are stored in the database; the next time you open the app they are
 already applied (no flash of the default theme/language).
 
 ---
 
-## Bundled tool: ulxCheckDirtyDrives
+## Bundled tools
 
-`ulxCheckDirtyDrives` comes **by default** in the Tools tab (it cannot be deleted).
-It checks and repairs NTFS partitions flagged as *dirty* or hibernated by Windows
-(`hiberfil.sys` / fast startup). It runs in the terminal with administrator rights
-(the script itself asks for `sudo`).
+The Tools tab ships two **built-in** tools with no trash icon (they cannot be deleted):
 
-Full documentation in
-[`ulxTools/ulxCheckDirtyDrives/README_EN.md`](./ulxTools/ulxCheckDirtyDrives/README_EN.md)
-([Español](./ulxTools/ulxCheckDirtyDrives/README.md)).
+- **`ulxCheckDirtyDrives`**: checks and repairs NTFS partitions flagged as *dirty* or
+  hibernated by Windows (`hiberfil.sys` / fast startup). The script itself asks for
+  `sudo`.
+  Documentation: [`README_EN.md`](./ulxTools/ulxCheckDirtyDrives/README_EN.md)
+  ([Español](./ulxTools/ulxCheckDirtyDrives/README.md)).
+- **`ulxFixDiskOwnership`**: detects secondary disks/partitions mounted with the
+  `root:root` owner (typical under `/mnt/...`) and, if you confirm, hands them over to
+  your user. It runs as your normal user (the script refuses to run as root).
+  Documentation: [`README_EN.md`](./ulxTools/ulxFixDiskOwnership/README_EN.md)
+  ([Español](./ulxTools/ulxFixDiskOwnership/README.md)).
+
+Both live in `ulxTools/` and are deployed and registered by the app on launch (see
+[Technical section](#technical-section)). To ship a new tool, just create its folder
+with the executable and a `metadata.json`: instructions in
+[`ulxTools/README.md`](./ulxTools/README.md).
 
 ---
 
@@ -209,12 +226,12 @@ LinuxHelm/
 │       │   │   ├── ScreenPrincipal.kt     # Home menu
 │       │   │   ├── ScreenInfo.kt          # Disks, packages, health checks
 │       │   │   ├── ScreenTools.kt         # Script launcher
-│       │   │   ├── ScreenConfiguracion.kt # Language and theme
+│       │   │   ├── ScreenConfiguracion.kt # Language, theme and scale
 │       │   │   └── Test.kt                # Test screen (outside the flow)
-│       │   ├── ulxComponentes/        # LanguageSelector, ThemeSelector
+│       │   ├── ulxComponentes/        # LanguageSelector, ThemeSelector, EscalaSelector
 │       │   └── ulxLib/                # Infrastructure (see below)
 │       └── composeResources/          # logo, etc.
-├── ulxTools/              # Bundled bash tools (currently: ulxCheckDirtyDrives)
+├── ulxTools/              # System tools (see ulxTools/README.md)
 └── gradle/                # Version catalog (libs.versions.toml)
 ```
 
@@ -247,24 +264,33 @@ settings (key PRIMARY KEY, value)
   the UI hides the trash and the `DELETE` itself checks it too, double protection).
   `path` with `UNIQUE` + `ON CONFLICT DO UPDATE` makes "re-adding" the same file serve
   as a way to **edit** name/URL without a separate edit screen.
-- **`settings`**: key-value store for preferences (`lang`, `theme`). **Stable keys** are
+- **`settings`**: key-value store for preferences (`lang`, `theme`, `escala`). **Stable keys** are
   saved (`"dark"`, `"Español"`…), never translated labels, so switching language never
   breaks interpretation of the stored value.
 - There is a manual **column migration** (`PRAGMA table_info` + `ALTER TABLE`) because
   `CREATE TABLE IF NOT EXISTS` does not add columns to existing tables.
 
-### Bundled tools
+### System tools
 
-`shared/build.gradle.kts` copies the files from `ulxTools/` **into the JAR** as
-resources (`jvmProcessResources`). At runtime, `ulxDB.seedBundledTools()`:
+Each tool lives in `ulxTools/<name>/` with its executable and a mandatory
+`metadata.json` (`name`, `description`, `website`). `shared/build.gradle.kts` copies
+every folder **into the JAR** as a resource tree under the `ULXTools/` prefix
+(`jvmProcessResources`). At runtime, `ulxDB.seedSystemTools()`:
 
-1. Extracts each resource to `~/.config/ulx/LinuxHelm/tools/`.
-2. Sets the execute permission.
-3. Registers it in the database with `deletable = 0` (idempotent, via upsert).
+1. Extracts the resource tree to a staging folder
+   (`~/.config/ulx/LinuxHelm/.ulx-staging`).
+2. Discovers the valid tools (executable + `metadata.json`; the main one is the file
+   matching the folder name).
+3. Copies **only the executables** to `~/.config/ulx/LinuxHelm/tools/` (flat, `+x`).
+4. Registers them in the database with `deletable = 0` and their metadata (upsert,
+   idempotent).
+5. Prunes tools that no longer exist and cleans up the legacy `ULX Tools/` folder from
+   older versions.
 
-It is re-extracted **on every launch**, so updating the app always leaves the tool at
-its latest version. Traveling in the classpath, it works the same with `run`, a `.deb`,
-an AppImage or a tar.gz, with no need for the `ulxTools/` folder on disk.
+It is re-deployed **on every launch**, so updating the app always leaves the tools at
+their latest version. Traveling in the classpath, it works the same with `run`, a `.deb`,
+an AppImage or a tar.gz, with no need for the `ulxTools/` folder on disk. How to add a
+new tool: [`ulxTools/README.md`](./ulxTools/README.md).
 
 ### Script execution
 
@@ -282,6 +308,34 @@ interact: prompts, stdin and the `sudo` password (asked by the terminal itself).
   `read -n1` to keep the terminal open. The whole line is passed through `shellQuote`
   (single quotes) so paths with spaces or `$` don't break.
 - Working directory = the file's folder.
+
+### File picker (native dialog)
+
+`pickScriptFile()` (`ulxScripts.kt`) tries, in order:
+
+1. **`kdialog --getopenfilename`** (KDE): the native Qt dialog, the same look as
+   Dolphin.
+2. **`zenity --file-selection`** (GNOME and others): the native GTK dialog.
+3. **`JFileChooser`** with the GTK look and a screen-relative size (last resort).
+
+kdialog and zenity are separate processes: the answer comes back through their
+**stdout** (the chosen path) and **exit code** (0 = accepted, 1 = cancelled), with no
+D-Bus and no signals. Cancelling never opens the next dialog.
+
+> Why not the XDG Desktop Portal (`gdbus` + `dbus-monitor`): verified on the real bus
+> that the `Request.Response` signal is delivered in *unicast* to the `gdbus` process
+> that made the call — which dies right after returning the object path — so no
+> external listener can ever receive it and the app would wait forever. With CLI tools,
+> that route is unworkable.
+
+### UI scale (HiDPI)
+
+The scale (100–200%) is stored in `settings` (`escala`) as a percentage; the UI turns
+it into a factor (`"150%"` → 1.5). `main.kt` creates the fixed 1150×760 dp window
+**multiplied by the scale**, and `App.kt` provides `LocalDensity` with
+`Density(density * escala, fontScale)`. In Compose, sp→px is computed as
+`sp × fontScale × density`, so a uniform factor on `density` scales the whole UI with
+no double scaling. It is observable, so the change is live.
 
 ### Theme and colors
 
@@ -305,8 +359,8 @@ keys** are the fixed selector literals (`"English"`, `"Español"`,
 
 `main.kt` calls `ulxSettings.loadAndApply()` **before** creating the window: the
 database is read once at startup and cached in memory (no SQLite queries inside
-compositions). When settings change on the Settings screen, `saveLang`/`saveTheme`
-update the cache + apply + persist on IO.
+compositions). When settings change on the Settings screen,
+`saveLang`/`saveTheme`/`saveEscala` update the cache + apply + persist on IO.
 
 ### System information
 
@@ -328,5 +382,6 @@ update the cache + apply + persist on IO.
 ./gradlew :shared:jvmTest
 ```
 
-Sample tests live in `shared/src/commonTest` and `shared/src/jvmTest`
-(`SharedCommonTest`, `SharedLogicDesktopTest`).
+Tests live in `shared/src/commonTest` and `shared/src/jvmTest`: `SharedCommonTest`,
+`SharedLogicDesktopTest` and `UlxSystemToolsTest` (system-tool metadata and
+deployment). 12 tests in total.

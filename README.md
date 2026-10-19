@@ -5,14 +5,17 @@
 **LinuxHelm** es una aplicación de escritorio para Linux construida con **Kotlin** y
 **Compose Multiplatform**. Funciona como un panel de utilidades del sistema: muestra
 información del equipo (gestor de paquetes, discos y su estado de salud), permite
-**añadir y ejecutar scripts** desde una interfaz gráfica e incluye de serie la
-herramienta `ulxCheckDirtyDrives` para reparar particiones NTFS "dirty" dejadas por
-Windows.
+**añadir y ejecutar scripts** desde una interfaz gráfica e incluye de serie dos
+herramientas del sistema: `ulxCheckDirtyDrives` (repara particiones NTFS "dirty"
+dejadas por Windows) y `ulxFixDiskOwnership` (corrige discos montados con propietario
+`root:root`).
 
 - Multiidioma: **English**, **Español**, **中文**, **Português** (inglés por defecto).
 - Tema **claro** y **oscuro**, con persistencia entre sesiones.
 - Los scripts y ajustes se guardan en SQLite (`~/.config/ulx/LinuxHelm/lh.db`), así que
   sobreviven a reinicios.
+- **Escala de interfaz** ajustable (100–200%) para pantallas HiDPI, aplicada en vivo y
+  persistida.
 
 ---
 
@@ -22,7 +25,7 @@ Windows.
 - [Requisitos](#requisitos)
 - [Compilar y ejecutar](#compilar-y-ejecutar)
 - [Cómo usar la aplicación](#cómo-usar-la-aplicación)
-- [Herramienta incluida: ulxCheckDirtyDrives](#herramienta-incluida-ulxcheckdirtydrives)
+- [Herramientas incluidas](#herramientas-incluidas)
 - [Apartado técnico](#apartado-técnico)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Tests](#tests)
@@ -36,7 +39,7 @@ Windows.
 | **Principal** | Menú de acceso con el logo de la app. |
 | **Información** | Gestor de paquetes detectado (con enlace a su wiki) y lista de discos con tamaño, uso y estado de salud (comprobación rápida y profunda). |
 | **Herramientas** | Lanzador de scripts: añade `.sh`, `.jar`, `.py`, `.AppImage`, binarios… y ejecútalos en una terminal del sistema. |
-| **Configuración** | Selector de idioma y tema (claro/oscuro), guardados al instante. |
+| **Configuración** | Selector de idioma, tema (claro/oscuro) y escala de interfaz (100–200%), guardados al instante. |
 
 Detalles útiles:
 
@@ -65,6 +68,8 @@ Detalles útiles:
   `dosfstools`, `btrfs-progs`).
 - Para la herramienta incluida `ulxCheckDirtyDrives`: paquete **`ntfs-3g`**
   (`sudo apt install ntfs-3g`).
+- Opcional, para el diálogo nativo de selección de archivo: **`kdialog`** (KDE) o
+  **`zenity`** (GNOME y otros). Si no hay ninguno, se usa el diálogo incluido en la app.
 
 **Para compilar desde el código**:
 
@@ -130,9 +135,11 @@ la izquierda.
 
 Esta es la pantalla central de la app: tu lanzador de scripts.
 
-1. Pulsa **Añadir script** y elige el archivo con el diálogo del sistema.
-   Se admiten `.sh`, `.jar`, `.py`, `.AppImage`, `.run`, `.bin` y binarios sin extensión
-   (cambia el filtro del diálogo a "Todos los archivos").
+1. Pulsa **Añadir script** y elige el archivo con el diálogo **nativo del escritorio**
+   (el Qt de KDE si tienes `kdialog`, el GTK de GNOME si tienes `zenity`, o el
+   incluido en la app en su defecto). Se admiten `.sh`, `.jar`, `.py`, `.AppImage`,
+   `.run`, `.bin` y binarios sin extensión: el diálogo nativo no filtra por tipo, así
+   que todos se ven.
 2. En el diálogo escribe el **Nombre** (viene rellenado con el del archivo) y, si
    quieres, un **Sitio web** opcional (p. ej. la página del proyecto).
 3. En la lista pulsas **Ejecutar**: se abre una ventana de terminal con el script
@@ -159,28 +166,41 @@ rojo y el botón **Ejecutar** queda deshabilitado.
 
 ### Configuración
 
-Dos desplegables dentro de una tarjeta:
+Tres controles dentro de una tarjeta:
 
 - **Tema**: Claro / Oscuro. El cambio es **en vivo** (la UI se repinta al instante) y
   persiste.
 - **Idioma**: English / Español / 中文 / Português. Se aplica al instante en todos los
   textos de la interfaz y también persiste.
+- **Escala**: 100% / 125% / 150% / 175% / 200%. Multiplica toda la interfaz (y el
+  tamaño de la ventana) por el factor elegido; útil en pantallas HiDPI. También cambia
+  en vivo.
 
-Ambos ajustes se guardan en la base de datos; la próxima vez que abras la app ya saldrán
-aplicados (sin parpadeo del tema/idioma por defecto).
+Los tres ajustes se guardan en la base de datos; la próxima vez que abras la app ya
+saldrán aplicados (sin parpadeo del tema/idioma por defecto).
 
 ---
 
-## Herramienta incluida: ulxCheckDirtyDrives
+## Herramientas incluidas
 
-`ulxCheckDirtyDrives` viene **de serie** en la pestaña Herramientas (no se puede borrar).
-Comprueba y repara particiones NTFS marcadas como *dirty* o hibernadas por Windows
-(`hiberfil.sys` / arranque rápido). Se ejecuta en la terminal con permisos de
-administrador (el propio script pide `sudo`).
+La pestaña Herramientas trae dos herramientas **de serie**, sin papelera (no se pueden
+borrar):
 
-Documentación completa en
-[`ulxTools/ulxCheckDirtyDrives/README.md`](./ulxTools/ulxCheckDirtyDrives/README.md)
-([English](./ulxTools/ulxCheckDirtyDrives/README_EN.md)).
+- **`ulxCheckDirtyDrives`**: comprueba y repara particiones NTFS marcadas como *dirty*
+  o hibernadas por Windows (`hiberfil.sys` / arranque rápido). Pide `sudo` el propio
+  script.
+  Documentación: [`README.md`](./ulxTools/ulxCheckDirtyDrives/README.md)
+  ([English](./ulxTools/ulxCheckDirtyDrives/README_EN.md)).
+- **`ulxFixDiskOwnership`**: detecta discos/particiones secundarios montados con
+  propietario `root:root` (típico en `/mnt/...`) y, si lo confirmas, se lo asigna a tu
+  usuario. Se ejecuta con tu usuario normal (el script rechaza correr como root).
+  Documentación: [`README.md`](./ulxTools/ulxFixDiskOwnership/README.md)
+  ([English](./ulxTools/ulxFixDiskOwnership/README_EN.md)).
+
+Ambas viven en `ulxTools/` y la app las despliega y registra al arrancar (ver
+[Apartado técnico](#apartado-técnico)). Para incluir una herramienta nueva basta con
+crear su subcarpeta con ejecutable y `metadata.json`: instrucciones en
+[`ulxTools/README.md`](./ulxTools/README.md).
 
 ---
 
@@ -214,12 +234,12 @@ LinuxHelm/
 │       │   │   ├── ScreenPrincipal.kt     # Menú principal
 │       │   │   ├── ScreenInfo.kt          # Discos, paquetes, chequeos
 │       │   │   ├── ScreenTools.kt         # Lanzador de scripts
-│       │   │   ├── ScreenConfiguracion.kt # Idioma y tema
+│       │   │   ├── ScreenConfiguracion.kt # Idioma, tema y escala
 │       │   │   └── Test.kt                # Pantalla de pruebas (fuera del flujo)
-│       │   ├── ulxComponentes/        # LanguageSelector, ThemeSelector
+│       │   ├── ulxComponentes/        # LanguageSelector, ThemeSelector, EscalaSelector
 │       │   └── ulxLib/                # Infraestructura (ver abajo)
 │       └── composeResources/          # logo, etc.
-├── ulxTools/              # Herramientas bash incluidas (hoy: ulxCheckDirtyDrives)
+├── ulxTools/              # Herramientas del sistema (ver ulxTools/README.md)
 └── gradle/                # Version catalog (libs.versions.toml)
 ```
 
@@ -252,24 +272,32 @@ settings (key PRIMARY KEY, value)
   (`deletable = 0`, la UI no muestra papelera y el `DELETE` propio también lo comprueba,
   doble protección). `path` con `UNIQUE` + `ON CONFLICT DO UPDATE` hace que "re-añadir"
   el mismo archivo sirva para **editar** nombre/web sin pantalla de edición aparte.
-- **`settings`**: clave-valor con ajustes (`lang`, `theme`). Se guardan **claves
+- **`settings`**: clave-valor con ajustes (`lang`, `theme`, `escala`). Se guardan **claves
   estables** (`"dark"`, `"Español"`…), nunca etiquetas traducidas, para que cambiar de
   idioma no rompa la interpretación del valor guardado.
 - Hay **migración manual** de columnas (`PRAGMA table_info` + `ALTER TABLE`) porque
   `CREATE TABLE IF NOT EXISTS` no añade columnas a tablas existentes.
 
-### Herramientas incluidas (bundled tools)
+### Herramientas del sistema (system tools)
 
-`shared/build.gradle.kts` copia los ficheros de `ulxTools/` **dentro del JAR** como
-recursos (`jvmProcessResources`). En runtime, `ulxDB.seedBundledTools()`:
+Cada herramienta vive en `ulxTools/<nombre>/` con su ejecutable y un `metadata.json`
+(obligatorio: `name`, `description`, `website`). `shared/build.gradle.kts` copia cada
+subcarpeta **dentro del JAR** como recurso bajo el prefijo `ULXTools/`
+(`jvmProcessResources`). En runtime, `ulxDB.seedSystemTools()`:
 
-1. Extrae cada recurso a `~/.config/ulx/LinuxHelm/tools/`.
-2. Le da permiso de ejecución.
-3. Lo registra en la BD con `deletable = 0` (idempotente, con upsert).
+1. Extrae el árbol de recursos a una carpeta de preparación
+   (`~/.config/ulx/LinuxHelm/.ulx-staging`).
+2. Descubre las herramientas válidas (ejecutable + `metadata.json`; la principal es el
+   fichero con el nombre de la carpeta).
+3. Copia **solo los ejecutables** a `~/.config/ulx/LinuxHelm/tools/` (plano, con `+x`).
+4. Las registra en la BD con `deletable = 0` y sus metadatos (upsert, idempotente).
+5. Poda las herramientas que ya no existan y limpia la antigua carpeta `ULX Tools/`
+   de versiones previas.
 
-Se re-extrae **en cada arranque**, así que al actualizar la app la herramienta queda
-siempre en su última versión. Al viajar en el classpath, funciona igual con `run`, `.deb`,
-AppImage o tar.gz, sin necesitar la carpeta `ulxTools/` en disco.
+Se redespliega **en cada arranque**, así que al actualizar la app las herramientas
+quedan siempre en su última versión. Al viajar en el classpath, funciona igual con
+`run`, `.deb`, AppImage o tar.gz, sin necesitar la carpeta `ulxTools/` en disco. Cómo
+añadir una herramienta nueva: [`ulxTools/README.md`](./ulxTools/README.md).
 
 ### Ejecución de scripts
 
@@ -287,6 +315,34 @@ terminal).
   hubo error → `read -n1` para mantener la terminal abierta. Toda la línea va con
   `shellQuote` (comillas simples) para que rutas con espacios o `$` no se rompan.
 - Directorio de trabajo = carpeta del archivo.
+
+### Selección del archivo (diálogo nativo)
+
+`pickScriptFile()` (`ulxScripts.kt`) prueba, en orden:
+
+1. **`kdialog --getopenfilename`** (KDE): el diálogo Qt nativo, con el mismo look que
+   Dolphin.
+2. **`zenity --file-selection`** (GNOME y otros): el diálogo GTK nativo.
+3. **`JFileChooser`** con aspecto GTK y tamaño relativo a la pantalla (último recurso).
+
+kdialog y zenity son procesos aparte: la respuesta vuelve por su **stdout** (la ruta
+elegida) y su **código de salida** (0 = aceptado, 1 = cancelado), sin D-Bus ni señales.
+Cancelar nunca abre el siguiente diálogo.
+
+> Por qué no el XDG Desktop Portal (`gdbus` + `dbus-monitor`): comprobado en el bus real
+> que la señal `Request.Response` se entrega en *unicast* al proceso `gdbus` que hizo la
+> llamada —y que muere justo al devolver la ruta del objeto—, de modo que ningún oyente
+> externo la recibe jamás y la app quedaba esperando eternamente. Con herramientas CLI,
+> esa vía es insalvable.
+
+### Escala de interfaz (HiDPI)
+
+La escala (100–200%) se guarda en `settings` (`escala`) como porcentaje; la UI lo
+convierte a factor (`"150%"` → 1.5). `main.kt` crea la ventana fija de 1150×760 dp
+**multiplicada por la escala**, y `App.kt` provee `LocalDensity` con
+`Density(density * escala, fontScale)`. En Compose, sp→px se calcula como
+`sp × fontScale × density`, así que un factor uniforme sobre `density` escala toda la
+interfaz sin doble escala. Es observable, así que el cambio es en vivo.
 
 ### Tema y colores
 
@@ -311,8 +367,8 @@ Las **claves de guardado** son los literales fijos del selector
 
 `main.kt` llama a `ulxSettings.loadAndApply()` **antes** de crear la ventana: la BD se
 lee una vez al arrancar y queda en caché en memoria (ninguna query SQLite dentro de una
-composición). Al cambiar ajustes en Configuración, `saveLang`/`saveTheme` actualizan
-caché + aplican + persisten en IO.
+composición). Al cambiar ajustes en Configuración, `saveLang`/`saveTheme`/`saveEscala`
+actualizan caché + aplican + persisten en IO.
 
 ### Información del sistema
 
@@ -335,5 +391,6 @@ caché + aplican + persisten en IO.
 ./gradlew :shared:jvmTest
 ```
 
-Hay tests de ejemplo en `shared/src/commonTest` y `shared/src/jvmTest`
-(`SharedCommonTest`, `SharedLogicDesktopTest`).
+Hay tests en `shared/src/commonTest` y `shared/src/jvmTest`: `SharedCommonTest`,
+`SharedLogicDesktopTest` y `UlxSystemToolsTest` (metadatos y despliegue de las
+herramientas del sistema). En total, 12 tests.

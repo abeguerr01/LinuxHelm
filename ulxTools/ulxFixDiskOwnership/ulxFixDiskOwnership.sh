@@ -94,4 +94,3 @@ done
 
 echo ""
 echo "Proceso finalizado."
-pausar
