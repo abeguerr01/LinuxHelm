@@ -138,25 +138,31 @@ fun openScriptInTerminal(path: String, args: List<String> = emptyList()): Boolea
 }
 
 /**
- * Abre un diálogo para elegir UN archivo ejecutable.
+ * Abre un diálogo para elegir UN archivo ejecutable. Devuelve la ruta absoluta
+ * elegida, o null si el usuario canceló.
  *
- * Usa `JFileChooser` (del propio JDK, sin dependencias extra), pero con dos
- * retoques importantes:
+ * Estrategia en tres capas, de más a menos nativa:
  *
- * - **Aspecto GTK**: en Linux se aplica el L&F GTK del propio JDK mientras
- *   dura el diálogo, así que el chooser pinta como el resto de apps de GNOME
- *   en vez del aspecto Metal genérico. Si GTK no está disponible (u otro SO),
- *   se ignora en silencio y se usa el L&F actual. El L&F anterior se restaura
- *   al cerrar.
- * - **Tamaño relativo a la pantalla** (~70%), con suelos y techos razonables:
- *   el tamaño de fábrica (~640x480 fijo) se veía ENORME comparado con la
- *   ventana de la app en pantallas grandes, y diminuto en pantallas pequeñas.
+ * 1. **kdialog** (KDE): el diálogo Qt nativo del escritorio — el mismo "Abrir"
+ *    que usa Dolphin, con aspecto idéntico al de Windows.
+ * 2. **zenity** (GNOME, XFCE y otros): el diálogo GTK nativo.
+ * 3. **`JFileChooser`** del propio JDK si el equipo no trae ninguno de los dos
+ *    (escritorios mínimos), con aspecto **GTK** y **tamaño relativo** a la
+ *    pantalla (~70%): el tamaño de fábrica (~640x480 fijo) se veía enorme
+ *    junto a la ventana de la app.
  *
- * El filtro predeterminado muestra los tipos reconocidos (.sh, .jar, .py,
- * .AppImage, .run, .bin), pero el usuario puede cambiar a "Todos los archivos"
- * desde el propio diálogo para elegir un binario sin extensión.
+ * kdialog y zenity son procesos aparte: el resultado vuelve por su **stdout**
+ * (la ruta elegida) y su **código de salida** (0 = aceptado, 1 = cancelado).
+ * Verificado en la máquina real: sin D-Bus ni señales que puedan perderse.
  *
- * Devuelve la ruta absoluta elegida, o null si el usuario canceló.
+ * (Antes se usaba el XDG Desktop Portal vía `gdbus` + `dbus-monitor`: quedó
+ * descartado tras comprobar en el bus real que la señal `Request.Response` se
+ * entrega en *unicast* al proceso `gdbus` llamador —que muere al devolver la
+ * ruta del objeto—, de modo que ningún oyente externo la recibe jamás y la app
+ * se quedaba esperando eternamente. Con CLI puro, esa vía es insalvable.)
+ *
+ * Un **cancelar nunca abre el siguiente diálogo**: si el usuario cerró el
+ * nativo, devolvemos null y ya.
  *
  * NOTA: es bloqueante, pero NO va en `Dispatchers.IO`: los diálogos Swing se tienen
  * que mostrar en el EDT. Un diálogo modal bombea sus propios eventos mientras está
@@ -164,6 +170,75 @@ fun openScriptInTerminal(path: String, args: List<String> = emptyList()): Boolea
  * `onClick` de Compose Desktop ya corre en el EDT, así que se llama directamente.
  */
 fun pickScriptFile(): String? {
+    // 1) kdialog: diálogo Qt nativo de KDE (donde vive el usuario de la app).
+    val kdialog = pickScriptFileExterno(
+        "kdialog", "--title", "Selecciona el script",
+        "--getopenfilename", System.getProperty("user.home")
+    )
+    if (kdialog !is DialogoNoInstalado) return (kdialog as? DialogoConRuta)?.ruta
+
+    // 2) zenity: diálogo GTK nativo de GNOME y compañía.
+    val zenity = pickScriptFileExterno(
+        "zenity", "--file-selection",
+        "--title=Selecciona el script", "--filename=~/"
+    )
+    if (zenity !is DialogoNoInstalado) return (zenity as? DialogoConRuta)?.ruta
+
+    // 3) Respaldo: JFileChooser del JDK (aspecto GTK + tamaño relativo).
+    return pickScriptFileSwing()
+}
+
+/** Qué pudo pasar con un diálogo externo (kdialog/zenity). */
+private sealed interface ResultadoDialogoExterno
+
+/** El usuario eligió un fichero. */
+private data class DialogoConRuta(val ruta: String) : ResultadoDialogoExterno
+
+/** El usuario canceló o cerró el diálogo: NO se debe abrir ningún respaldo. */
+private object DialogoCancelado : ResultadoDialogoExterno
+
+/** El programa no está instalado en este equipo: probar la siguiente capa. */
+private object DialogoNoInstalado : ResultadoDialogoExterno
+
+/**
+ * Lanza un diálogo de fichero nativo con un programa externo (`comando` es
+ * `kdialog` o `zenity`, con sus argumentos) y traduce su resultado:
+ *
+ * - **aceptar** → exit 0 y la ruta por stdout → [DialogoConRuta];
+ * - **cancelar** → exit 1 y stdout vacío → [DialogoCancelado];
+ * - **no instalado** → `ProcessBuilder` lanza IOException → [DialogoNoInstalado].
+ *
+ * Verificado en la máquina real: `kdialog --getopenfilename` cancelado da
+ * exit 1 + stdout vacío, y `zenity --file-selection` aceptado devuelve la ruta
+ * por stdout con exit 0. Un fallo raro (crash del diálogo) cae en el mismo caso
+ * que cancelar: nunca cuelga la app ni abre dos diálogos.
+ */
+private fun pickScriptFileExterno(vararg comando: String): ResultadoDialogoExterno {
+    val proceso = try {
+        ProcessBuilder(*comando)
+            // Los mensajes de cancelar van a la consola de la app; no interesan.
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+    } catch (e: Exception) {
+        return DialogoNoInstalado
+    }
+    val ruta = try {
+        // Hasta EOF: el diálogo externo escribe la ruta y termina (o cancela
+        // y no escribe nada). readText() no puede quedarse colgado porque el
+        // proceso cierra su stdout al salir.
+        proceso.inputStream.bufferedReader().readText().trim()
+    } catch (e: Exception) {
+        ""
+    }
+    val codigo = proceso.waitFor()
+    return if (codigo == 0 && ruta.isNotEmpty()) DialogoConRuta(ruta) else DialogoCancelado
+}
+
+/**
+ * Respaldo: `JFileChooser` del JDK, con aspecto GTK en Linux y tamaño
+ * proporcional a la pantalla. Ver la capa 2 de [pickScriptFile].
+ */
+private fun pickScriptFileSwing(): String? {
     // L&F GTK solo mientras dure el diálogo; se restaura el anterior después.
     val lafAnterior = UIManager.getLookAndFeel()
     try {
