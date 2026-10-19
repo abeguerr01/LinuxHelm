@@ -78,6 +78,11 @@ object ulxDB {
         File(configDir, "tools")
     }
 
+    /** Carpeta donde se extrae y escanea el árbol de herramientas "ULX Tools". */
+    private val systemToolsDir: File by lazy {
+        File(configDir, "ULX Tools")
+    }
+
     private var connection: Connection? = null
 
     /** Abre la conexión (si no estaba abierta), crea las tablas y siembra las herramientas incluidas. */
@@ -117,6 +122,8 @@ object ulxDB {
         // Después de tener las tablas listas, registra (o re-registra) las
         // herramientas incluidas de serie. Es idempotente.
         seedBundledTools()
+        // Árbol genérico ULX Tools: escaneo recursivo + registro como no borrable.
+        seedSystemTools()
     }
 
     /**
@@ -188,6 +195,87 @@ object ulxDB {
             null
         } finally {
             input.close()
+        }
+    }
+
+    // ==================================================
+    // ===== ULX Tools (árbol genérico) ================
+    // ==================================================
+
+    /**
+     * Sincroniza las herramientas del árbol `ULX Tools/` (empaquetadas en el JAR
+     * y extraídas a `~/.config/ulx/LinuxHelm/ULX Tools/`).
+     *
+     * 1. Extrae el árbol del JAR a disco (idempotente: al actualizar la app
+     *    quedan siempre las últimas versiones).
+     * 2. Escanea recursivamente buscando carpetas con un `.sh` y registra cada
+     *    una en la BD con `deletable = 0` (la UI no muestra la papelera).
+     * 3. Poda los registros obsoletos: los que estaban bajo `ULX Tools/` pero ya
+     *    no existen en el árbol (carpeta renombrada o borrada entre versiones).
+     *
+     * NO toca las herramientas añadidas por el usuario (`deletable = 1`) ni la
+     * herramienta "bundled" clásica (`ulxCheckDirtyDrives`, que vive en `tools/`,
+     * otra ruta distinta). Ambos mecanismos conviven sin solaparse.
+     */
+    @Synchronized
+    fun seedSystemTools() {
+        try {
+            extractResourceTree("ULXTools", systemToolsDir)
+        } catch (e: Exception) {
+            System.err.println("ULX: no se pudo extraer ULX Tools: $e")
+        }
+
+        val tools = try {
+            discoverTools(systemToolsDir)
+        } catch (e: Exception) {
+            System.err.println("ULX: no se pudo escanear ULX Tools: $e")
+            emptyList()
+        }
+
+        for (t in tools) upsertSystemTool(t)
+        pruneSystemTools(tools.mapTo(mutableSetOf()) { it.scriptPath })
+    }
+
+    /** Registra (o actualiza) una herramienta ULX como NO borrable. */
+    private fun upsertSystemTool(tool: DiscoveredTool) {
+        connection!!.prepareStatement(
+            """
+            INSERT INTO scripts (name, description, website, path, deletable)
+            VALUES (?, ?, ?, ?, 0)
+            ON CONFLICT(path) DO UPDATE SET
+                name = excluded.name,
+                description = excluded.description,
+                website = excluded.website,
+                deletable = 0
+            """.trimIndent()
+        ).use { ps ->
+            ps.setString(1, tool.name)
+            ps.setString(2, tool.description)
+            ps.setString(3, tool.website)
+            ps.setString(4, tool.scriptPath)
+            ps.executeUpdate()
+        }
+    }
+
+    /**
+     * Borra los registros de herramientas ULX cuyo archivo ya no está en el
+     * árbol extraído. Solo afecta a rutas bajo `ULX Tools/` con `deletable = 0`,
+     * así que nunca toca herramientas del usuario ni la bundled clásica.
+     */
+    private fun pruneSystemTools(currentPaths: Set<String>) {
+        val prefix = systemToolsDir.absolutePath + File.separator
+        val staleIds = mutableListOf<Long>()
+        connection!!.createStatement().use { st ->
+            st.executeQuery("SELECT id, path FROM scripts WHERE deletable = 0").use { rs ->
+                while (rs.next()) {
+                    val id = rs.getLong(1)
+                    val path = rs.getString(2)
+                    if (path.startsWith(prefix) && path !in currentPaths) staleIds += id
+                }
+            }
+            for (id in staleIds) {
+                st.executeUpdate("DELETE FROM scripts WHERE id = $id")
+            }
         }
     }
 

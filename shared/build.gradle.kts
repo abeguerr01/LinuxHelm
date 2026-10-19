@@ -40,4 +40,12 @@ tasks.named<Copy>("jvmProcessResources") {
     from(rootProject.file("ulxTools/ulxCheckDirtyDrives/ulxCheckDirtyDrives.sh")) {
         into("ulxTools")
     }
+    // Árbol completo de "ULX Tools/" (subcarpetas + .sh + metadata.json + README),
+    // copiado recursivamente preservando la estructura. Se empaqueta en el JAR con
+    // el prefijo "ULXTools/" y en runtime se extrae a
+    // ~/.config/ulx/LinuxHelm/ULX Tools/ y se registra en la BD como no borrable
+    // (ver ulxDB.seedSystemTools). Cada subcarpeta con un .sh = una herramienta.
+    from(rootProject.file("ULX Tools")) {
+        into("ULXTools")
+    }
 }
