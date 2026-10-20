@@ -1,5 +1,9 @@
 > ### [Documentation in English](README_EN.md)
 
+<div align="center">
+  <img src="shared/src/commonMain/composeResources/drawable/logo.png" alt="Logo de Linux Helm" width="180">
+</div>
+
 # LinuxHelm
 
 **LinuxHelm** es una aplicación de escritorio para Linux construida con **Kotlin** y
