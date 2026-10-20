@@ -30,6 +30,14 @@ compose.desktop {
             // aplicaciones muestra "Name=Linux Helm".
             packageName = "Linux Helm"
             packageVersion = "1.0.0"
+            // Módulos AÑADIDOS al runtime recortado (jlink). Compose Desktop solo
+            // empaqueta 7 módulos por defecto (java.base, java.desktop, java.xml,
+            // java.prefs, java.logging, java.datatransfer, jdk.crypto.ec) y sin
+            // java.sql la app revienta al abrir SQLite con
+            // NoClassDefFoundError: java/sql/Driver — bug que solo aparece en
+            // los formatos con JRE propio (.deb/.rpm/.AppImage/tar.gz), nunca
+            // con run ni el uber-jar (usan el Java completo del sistema).
+            modules("java.sql")
             description = "Linux Helm - lanzador de scripts y panel de información del sistema"
             vendor = "LinuxHelm"
             linux {
@@ -50,6 +58,12 @@ val packageTarGz = tasks.register<Tar>("packageTarGz") {
     group = "compose desktop"
     description = "Crea un .tar.gz portátil de la aplicación"
     dependsOn("createDistributable")
+
+    // IMPORTANTE: sin esto, Gradle archiva TODO con permisos 0644 y al
+    // descomprimir ni el lanzador (bin/Linux Helm) ni jspawnhelper (el binario
+    // que Java usa para lanzar kdialog/zenity/terminales) son ejecutables.
+    // Se archivan los permisos reales del disco (+x incluido).
+    useFileSystemPermissions()
 
     val arch = System.getProperty("os.arch").let { if (it == "amd64") "x86_64" else it }
     archiveFileName.set("linux-helm-1.0.0-linux-$arch.tar.gz")
