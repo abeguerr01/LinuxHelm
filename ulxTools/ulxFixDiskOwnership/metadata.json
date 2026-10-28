@@ -1,5 +1,6 @@
 {
-  "name": "ulxFixDiskOwnership",
-  "description": "EN: Check and fix the owner (e.g. root:root) of mounted secondary disks and partitions, so that your user can write to them.\nES: Comprueba y corrige el propietario (p. ej. root:root) de discos y particiones secundarios montados, para que tu usuario pueda escribir en ellos.",
-  "website": "https://github.com/abeguerr01/LinuxHelm/tree/master/ulxTools/ulxFixDiskOwnership"
+  "name": "ulxCheckDirtyDrives",
+  "description": "EN: Check and repair NTFS partitions marked as \"dirty\" or hibernated by Windows (hiberfil.sys / fast startup).\nES: Comprueba y repara particiones NTFS \"dirty\" o hibernadas por Windows (hiberfil.sys / arranque rápido).",
+  "website": "https://github.com/abeguerr01/LinuxHelmTools/tree/main/ulxCheckDirtyDrives"
 }
+
