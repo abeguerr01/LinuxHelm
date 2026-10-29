@@ -9,9 +9,11 @@
 **LinuxHelm** is a desktop application for Linux built with **Kotlin** and
 **Compose Multiplatform**. It works as a system utilities panel: it shows information
 about your machine (package manager, disks and their health status), lets you
-**add and run scripts** from a graphical interface, and ships with two system tools:
-`ulxCheckDirtyDrives` (fixes NTFS partitions left "dirty" by Windows) and
-`ulxFixDiskOwnership` (fixes secondary disks mounted with the `root:root` owner).
+**add and run scripts** from a graphical interface, and ships with three system tools:
+`ulxCheckDirtyDrives` (fixes NTFS partitions left "dirty" by Windows),
+`ulxFixDiskOwnership` (fixes secondary disks mounted with the `root:root` owner) and
+`ulxTarGzInstaller` (graphical installer for `.tar.gz` applications into `/opt/`,
+launched without a terminal).
 
 - Multilingual: **English**, **Español**, **中文**, **Português** (English by default).
 - **Light** and **dark** theme, persisted between sessions.
@@ -30,6 +32,7 @@ about your machine (package manager, disks and their health status), lets you
 - [Bundled tools](#bundled-tools)
 - [Technical section](#technical-section)
 - [Project structure](#project-structure)
+- [Map of modules](#map-of-modules)
 - [Tests](#tests)
 
 ---
@@ -40,7 +43,7 @@ about your machine (package manager, disks and their health status), lets you
 |---|---|
 | **Home** | Menu with the app logo and access to every screen. |
 | **Information** | Detected package manager (with a link to its wiki) and a disk list with size, usage and health status (quick and deep check). |
-| **Tools** | Script launcher: add `.sh`, `.jar`, `.py`, `.AppImage`, binaries… and run them in a system terminal. |
+| **Tools** | Script launcher: add `.sh`, `.jar`, `.py`, `.AppImage`, binaries… and run them in a terminal —or directly, without a terminal, for GUI apps. |
 | **Settings** | Language, theme (light/dark) and UI scale (100–200%) selectors, saved instantly. |
 
 Useful details:
@@ -50,6 +53,9 @@ Useful details:
   `sudo` password and watch the output live.
 - The terminal **stays open after the script finishes** ("Press any key to close") so
   you can read the result, and reports the exit code if it failed.
+- **Graphical (GUI) apps** can be marked **without terminal** (the checkbox when adding
+  them, or `"terminal": false` in a bundled tool's `metadata.json`): they launch
+  directly with no window, and the app warns you if they fail to even start.
 - The app detects when a script **no longer exists** or **lacks execute permission
   (+x)** and warns you before it fails.
 - Bundled tools **cannot be deleted** from the interface.
@@ -68,6 +74,8 @@ Useful details:
   filesystem tools (`e2fsprogs`, `ntfs-3g`, `dosfstools`, `btrfs-progs`).
 - For the bundled `ulxCheckDirtyDrives` tool: the **`ntfs-3g`** package
   (`sudo apt install ntfs-3g`).
+- For the bundled `ulxTarGzInstaller` tool: **`tar`** (GNU tar) and **`pkexec`**
+  (policykit), present in every Linux desktop.
 - Optional, for the native file picker: **`kdialog`** (KDE) or **`zenity`** (GNOME and
   others). With neither installed, the dialog built into the app is used.
 
@@ -153,10 +161,12 @@ This is the heart of the app: your script launcher.
    and extensionless binaries — the native dialog applies no type filter, so every
    file is visible.
 2. In the dialog, type the **Name** (pre-filled with the file name) and, optionally, a
-   **Website** (e.g. the project's page).
+   **Website** (e.g. the project's page). Tick **Run without terminal** for a graphical
+   application (GUI): it will launch directly, with no terminal window.
 3. In the list, click **Run**: a terminal window opens with the script running. When it
    finishes, the terminal stays open so you can read the output; if the script failed,
-   the exit code is shown.
+   the exit code is shown. Anything marked **without terminal** launches directly (no
+   window): if it fails to even start, the app tells you with a dialog.
 4. **Check site** (only if you provided a URL) opens the page in the browser.
 5. The **trash** removes the script from the list. Note: it deletes the record, **not**
    the file on disk; you can add it again anytime.
@@ -194,7 +204,7 @@ already applied (no flash of the default theme/language).
 
 ## Bundled tools
 
-The Tools tab ships two **built-in** tools with no trash icon (they cannot be deleted):
+The Tools tab ships **three built-in** tools with no trash icon (they cannot be deleted):
 
 - **`ulxCheckDirtyDrives`**: checks and repairs NTFS partitions flagged as *dirty* or
   hibernated by Windows (`hiberfil.sys` / fast startup). The script itself asks for
@@ -206,8 +216,14 @@ The Tools tab ships two **built-in** tools with no trash icon (they cannot be de
   your user. It runs as your normal user (the script refuses to run as root).
   Documentation: [`README_EN.md`](./ulxTools/ulxFixDiskOwnership/README_EN.md)
   ([Español](./ulxTools/ulxFixDiskOwnership/README.md)).
+- **`ulxTarGzInstaller`**: **graphical** installer for `.tar.gz` applications into
+  `/opt/` (with `.desktop` launcher creation). Being a **GUI** app, its `metadata.json`
+  declares `"terminal": false`, so the app launches it **directly, without opening a
+  terminal** (same as the *Run without terminal* checkbox when adding your own script).
+  Documentation: [`README_EN.md`](./ulxTools/ulxTarGzInstaller/README_EN.md)
+  ([Español](./ulxTools/ulxTarGzInstaller/README.md)).
 
-Both live in `ulxTools/` and are deployed and registered by the app on launch (see
+All three live in `ulxTools/` and are deployed and registered by the app on launch (see
 [Technical section](#technical-section)). To ship a new tool, just create its folder
 with the executable and a `metadata.json`: instructions in
 [`ulxTools/README.md`](./ulxTools/README.md).
@@ -246,11 +262,46 @@ LinuxHelm/
 │       │   │   ├── ScreenTools.kt         # Script launcher
 │       │   │   └── ScreenConfiguracion.kt # Language, theme and scale
 │       │   ├── ulxComponentes/        # MenuSelector (generic settings dropdown)
-│       │   └── ulxLib/                # Infrastructure (see below)
+│       │   └── ulxLib/                # All the logic (see Map of modules)
 │       └── composeResources/          # logo, etc.
 ├── ulxTools/              # System tools (see ulxTools/README.md)
 └── gradle/                # Version catalog (libs.versions.toml)
 ```
+
+### Map of modules
+
+The separation is strict: **`ui.compose` only draws** (Compose screens) and
+**`ui.ulxLib` holds all reusable logic**. The screens import from `ulxLib`, never the
+other way around, so testing the logic requires opening no window at all.
+
+**`ui/compose/` — Screens (UI only):**
+
+| File | What it draws |
+|---|---|
+| `Screen.kt` | Navigation `Pantalla` enum + `BotonVolver` button |
+| `ScreenPrincipal.kt` | Home menu |
+| `ScreenInfo.kt` | Disks, packages and health checks |
+| `ScreenTools.kt` | Script list: run, add, remove and their dialogs |
+| `ScreenConfiguracion.kt` | Language, theme and UI scale |
+
+> Pre-existing exception: `ScreenInfo.kt` also carries its own system-query logic
+> (`getDiskInfo()` reading `lsblk`, `quickCheck()`/`deepCheck()` via `pkexec`,
+> `detectPackageManager()`) instead of living in `ulxLib`. It is the only place where
+> the UI does system work on its own.
+
+**`ui/ulxLib/` — Logic:**
+
+| File | Responsibility | Key functions |
+|---|---|---|
+| `ulxScripts.kt` | Script launching | `buildCommand()` (command per extension), `needsExecuteBit()`, `openScriptInTerminal()` (terminal with readable output at the end), `openScriptDirect()` (GUI apps **without** terminal), `pickScriptFile()` (kdialog → zenity → JFileChooser) |
+| `ulxDB.kt` | Persistence: SQLite at `~/.config/ulx/LinuxHelm/lh.db` | `connect()` + column migrations, `seedSystemTools()` (deploys `ulxTools/` on every launch), `upsertScript()` / `deleteScript()` / `getAllScripts()`, key-value settings |
+| `ulxSystemTools.kt` | Tool discovery (pure, testable functions) | Recursive `discoverTools()`, `findMainExecutable()`, minimal JSON parsers (`jsonStringField` / `jsonBoolField`), `extractResourceTree()` (tree from disk in dev or from inside the packaged JAR) |
+| `ulxSettings.kt` | Global settings (language, theme, scale) with an in-memory cache | `loadAndApply()` before the first paint (no flicker); the scale is observable and rescales the UI live |
+| `ulxLang.kt` / `ulxLangManager.kt` | UI strings (i18n: EN, ES, ZH, PT) | `applySaved(lang)` + `setEnglish()` / `setSpanish()` / `setChinese()` / `setPortuguese()` |
+| `ulxColor.kt` / `ulxColorManager.kt` | Observable palette and themes | `setLight()` / `setDark()` / `colorScheme()`; screens never create a `Color()` by hand |
+
+Covered by the tests: `UlxScriptsTest` (launching), `UlxSystemToolsTest` (discovery and
+parsers) and `SharedCommonTest` / `SharedLogicDesktopTest`.
 
 ### Navigation
 
@@ -273,19 +324,24 @@ closes at a bad moment) and for having a single source of truth.
 Tables:
 
 ```sql
-scripts (id, name, description, website, path UNIQUE, deletable)
+scripts (id, name, description, website, path UNIQUE, deletable, terminal)
 settings (key PRIMARY KEY, value)
 ```
 
 - **`scripts`**: user scripts (`deletable = 1`) and bundled tools (`deletable = 0`;
   the UI hides the trash and the `DELETE` itself checks it too, double protection).
   `path` with `UNIQUE` + `ON CONFLICT DO UPDATE` makes "re-adding" the same file serve
-  as a way to **edit** name/URL without a separate edit screen.
+  as a way to **edit** name/URL/no-terminal without a separate edit screen.
+- **`terminal`**: how it launches — `1` in a system terminal (the default, for
+  prompts/sudo/stdin) and `0` for **graphical** (GUI) apps, launched directly with no
+  terminal window. Declared by each tool in its `metadata.json` (`"terminal": false`)
+  or by the user via the checkbox when adding the script.
 - **`settings`**: key-value store for preferences (`lang`, `theme`, `escala`). **Stable keys** are
   saved (`"dark"`, `"Español"`…), never translated labels, so switching language never
   breaks interpretation of the stored value.
 - There is a manual **column migration** (`PRAGMA table_info` + `ALTER TABLE`) because
-  `CREATE TABLE IF NOT EXISTS` does not add columns to existing tables.
+  `CREATE TABLE IF NOT EXISTS` does not add columns to existing tables (that is how
+  `deletable` and `terminal` reached databases from earlier versions).
 
 ### System tools
 
