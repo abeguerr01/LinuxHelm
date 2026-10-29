@@ -16,19 +16,25 @@ import java.util.jar.JarFile
  * [scriptPath] es la ruta absoluta del ejecutable principal.
  * [name] / [description] / [website] salen del `metadata.json` (o `info.json`)
  * de la carpeta; si falta `name`, es el nombre de la carpeta.
+ * [terminal] indica si al ejecutar se abre una terminal del sistema: las
+ * herramientas GUI (p. ej. un binario con interfaz gráfica) la declaran con
+ * `"terminal": false` en su `metadata.json` y la app las lanza directamente,
+ * sin abrir ventana de terminal. Por defecto true (como siempre).
  */
 data class DiscoveredTool(
     val scriptPath: String,
     val name: String,
     val description: String?,
-    val website: String?
+    val website: String?,
+    val terminal: Boolean = true
 )
 
 /** Metadatos leídos de `metadata.json` / `info.json` (todos opcionales). */
 private data class ToolMetadata(
     val name: String?,
     val description: String?,
-    val website: String?
+    val website: String?,
+    val terminal: Boolean?
 )
 
 /**
@@ -108,7 +114,8 @@ private fun toolFromDir(dir: File): DiscoveredTool? {
         scriptPath = main.absolutePath,
         name = meta?.name?.takeIf { it.isNotBlank() } ?: dir.name,
         description = meta?.description,
-        website = meta?.website
+        website = meta?.website,
+        terminal = meta?.terminal ?: true
     )
 }
 
@@ -152,7 +159,8 @@ private fun readMetadata(dir: File): ToolMetadata? {
     return ToolMetadata(
         name = jsonStringField(text, "name"),
         description = jsonStringField(text, "description"),
-        website = jsonStringField(text, "website")
+        website = jsonStringField(text, "website"),
+        terminal = jsonBoolField(text, "terminal")
     )
 }
 
@@ -206,6 +214,30 @@ fun jsonStringField(json: String, key: String): String? {
         }
     }
     return sb.toString()
+}
+
+/**
+ * Extrae el valor booleano ("llave": true|false) de un objeto JSON plano.
+ *
+ * Mismo planteamiento mínimo y sin dependencias que [jsonStringField]: busca
+ * `"llave"`, salta los espacios tras los dos puntos y reconoce los literales
+ * `true` / `false` (con borde de palabra, así `truex` no vale). Cualquier otra
+ * cosa (número, string, ausencia) devuelve null y el caller aplica su default.
+ */
+fun jsonBoolField(json: String, key: String): Boolean? {
+    val needle = "\"$key\""
+    val keyIdx = json.indexOf(needle)
+    if (keyIdx < 0) return null
+    var i = json.indexOf(':', keyIdx + needle.length)
+    if (i < 0) return null
+    i++ // salta ':'
+    while (i < json.length && json[i].isWhitespace()) i++
+    // Borde de palabra: "truex" o "false1" no son booleanos válidos
+    return when {
+        json.startsWith("true", i) && json.getOrNull(i + 4)?.isLetterOrDigit() != true -> true
+        json.startsWith("false", i) && json.getOrNull(i + 5)?.isLetterOrDigit() != true -> false
+        else -> null
+    }
 }
 
 /**

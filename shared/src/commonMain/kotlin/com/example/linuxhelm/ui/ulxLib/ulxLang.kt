@@ -37,4 +37,8 @@ object ulxLang {
     var SinTerminalDetalle = "Install a terminal (gnome-terminal, konsole, xterm…) to run scripts"
     var TerminalSalioCon = "finished with exit code"
     var TerminalPulsaTecla = "Press any key to close"
+    var SinTerminalOpcion = "Run without terminal (GUI applications)"
+    var ErrorAlEjecutar = "Could not start the program"
+    var ErrorAlEjecutarDetalle =
+        "It may not be an executable that works on this system (architecture, dependencies…)."
 }

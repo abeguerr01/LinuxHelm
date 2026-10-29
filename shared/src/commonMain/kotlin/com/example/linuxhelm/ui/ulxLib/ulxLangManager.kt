@@ -32,6 +32,10 @@ object ulxLangManager {
         ulxLang.SinTerminalDetalle = "Instala una terminal (gnome-terminal, konsole, xterm…) para ejecutar scripts"
         ulxLang.TerminalSalioCon = "terminó con código de salida"
         ulxLang.TerminalPulsaTecla = "Pulsa una tecla para cerrar"
+        ulxLang.SinTerminalOpcion = "Ejecutar sin terminal (aplicaciones gráficas)"
+        ulxLang.ErrorAlEjecutar = "No se pudo iniciar el programa"
+        ulxLang.ErrorAlEjecutarDetalle =
+            "Puede que no sea un programa ejecutable en este sistema (arquitectura, dependencias…)."
     }
 
     fun setEnglish(){
@@ -65,6 +69,10 @@ object ulxLangManager {
         ulxLang.SinTerminalDetalle = "Install a terminal (gnome-terminal, konsole, xterm…) to run scripts"
         ulxLang.TerminalSalioCon = "finished with exit code"
         ulxLang.TerminalPulsaTecla = "Press any key to close"
+        ulxLang.SinTerminalOpcion = "Run without terminal (GUI applications)"
+        ulxLang.ErrorAlEjecutar = "Could not start the program"
+        ulxLang.ErrorAlEjecutarDetalle =
+            "It may not be an executable that works on this system (architecture, dependencies…)."
     }
 
     fun setChinese() {
@@ -98,6 +106,10 @@ object ulxLangManager {
         ulxLang.SinTerminalDetalle = "安装终端（gnome-terminal、konsole、xterm…）以运行脚本"
         ulxLang.TerminalSalioCon = "以退出代码结束"
         ulxLang.TerminalPulsaTecla = "按任意键关闭"
+        ulxLang.SinTerminalOpcion = "无终端运行（图形应用）"
+        ulxLang.ErrorAlEjecutar = "无法启动程序"
+        ulxLang.ErrorAlEjecutarDetalle =
+            "该程序可能无法在此系统上运行（架构、依赖…）。"
     }
 
     fun setPortuguese() {
@@ -131,6 +143,10 @@ object ulxLangManager {
         ulxLang.SinTerminalDetalle = "Instale um terminal (gnome-terminal, konsole, xterm…) para executar scripts"
         ulxLang.TerminalSalioCon = "terminou com código de saída"
         ulxLang.TerminalPulsaTecla = "Pressione qualquer tecla para fechar"
+        ulxLang.SinTerminalOpcion = "Executar sem terminal (aplicativos gráficos)"
+        ulxLang.ErrorAlEjecutar = "Não foi possível iniciar o programa"
+        ulxLang.ErrorAlEjecutarDetalle =
+            "Pode não ser um executável compatível com este sistema (arquitetura, dependências…)."
     }
 
     /**

@@ -299,7 +299,7 @@ settings (key PRIMARY KEY, value)
 ### Herramientas del sistema (system tools)
 
 Cada herramienta vive en `ulxTools/<nombre>/` con su ejecutable y un `metadata.json`
-(obligatorio: `name`, `description`, `website`). `shared/build.gradle.kts` copia cada
+(obligatorio: `name`, `description`, `website` y opcional `terminal`). `shared/build.gradle.kts` copia cada
 subcarpeta **dentro del JAR** como recurso bajo el prefijo `ULXTools/`
 (`jvmProcessResources`). En runtime, `ulxDB.seedSystemTools()`:
 
@@ -325,6 +325,11 @@ añadir una herramienta nueva: [`ulxTools/README.md`](./ulxTools/README.md).
 usuario pueda interactuar: prompts, stdin y la contraseña de `sudo` (que pide la propia
 terminal).
 
+- **Sin terminal cuando no hace falta** (`terminal = false`): las apps gráficas (GUI)
+  se lanzan directamente con `openScriptDirect()` — sin ventana de terminal — y la UI
+  avisa si el proceso ni siquiera arranca. Se declara en el `metadata.json` de las
+  herramientas del sistema, o con el checkbox del diálogo "Añadir script" para las del
+  usuario (columna `terminal` de la BD).
 - Lista de terminales conocidas de mayor a menor probabilidad, con dos estilos de
   invocación: quienes reciben el comando como cadena tras `-e` (gnome-terminal,
   xfce4-terminal…) y quienes reciben argv separado (konsole, xterm, kitty…).

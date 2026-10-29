@@ -1,5 +1,6 @@
 {
   "name": "ulxCheckDirtyDrives",
   "description": "EN: Check and repair NTFS partitions marked as \"dirty\" or hibernated by Windows (hiberfil.sys / fast startup).\nES: Comprueba y repara particiones NTFS \"dirty\" o hibernadas por Windows (hiberfil.sys / arranque rápido).",
-  "website": "https://github.com/abeguerr01/LinuxHelmTools/tree/main/ulxCheckDirtyDrives"
+  "website": "https://github.com/abeguerr01/LinuxHelmTools/tree/main/ulxCheckDirtyDrives",
+  "terminal": true
 }

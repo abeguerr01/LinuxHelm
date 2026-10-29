@@ -14,6 +14,10 @@ import java.sql.DriverManager
  * [deletable] controla si el usuario puede borrar el registro:
  * - true  → script añadido por el usuario (la papelera aparece)
  * - false → herramienta incluida de serie con la app (no se puede borrar)
+ *
+ * [terminal] controla cómo se lanza:
+ * - true  → en una terminal del sistema (por defecto: prompts, sudo, stdin)
+ * - false → directamente, sin terminal (apps GUI: no abre una ventana inútil)
  */
 data class ScriptMeta(
     val id: Long = 0,
@@ -21,7 +25,8 @@ data class ScriptMeta(
     val description: String? = null,
     val website: String? = null,
     val path: String,
-    val deletable: Boolean = true
+    val deletable: Boolean = true,
+    val terminal: Boolean = true
 )
 
 /**
@@ -100,12 +105,14 @@ object ulxDB {
     }
 
     /**
-     * Migración de BDs creadas antes de existir la columna `deletable`.
+     * Migración de BDs creadas antes de existir la columna `deletable` — o
+     * antes de `terminal` (cómo se lanza: terminal del sistema o directo).
      *
      * `CREATE TABLE IF NOT EXISTS` no añade columnas a una tabla que ya existe,
      * así que se comprueba con `PRAGMA table_info` y se agrega si falta.
-     * Los registros existentes quedan como `deletable = 1` (editables por el usuario),
-     * que es el comportamiento por defecto de siempre.
+     * Los registros existentes quedan como `deletable = 1` (editables por el
+     * usuario) y `terminal = 1` (se lanzan en terminal), que es el
+     * comportamiento por defecto de siempre.
      */
     private fun migrateScriptsTable(st: java.sql.Statement) {
         val columns = mutableSetOf<String>()
@@ -117,6 +124,11 @@ object ulxDB {
         if ("deletable" !in columns) {
             st.executeUpdate(
                 "ALTER TABLE scripts ADD COLUMN deletable INTEGER NOT NULL DEFAULT 1"
+            )
+        }
+        if ("terminal" !in columns) {
+            st.executeUpdate(
+                "ALTER TABLE scripts ADD COLUMN terminal INTEGER NOT NULL DEFAULT 1"
             )
         }
     }
@@ -191,19 +203,21 @@ object ulxDB {
     private fun upsertSystemTool(tool: DiscoveredTool) {
         connection!!.prepareStatement(
             """
-            INSERT INTO scripts (name, description, website, path, deletable)
-            VALUES (?, ?, ?, ?, 0)
+            INSERT INTO scripts (name, description, website, path, deletable, terminal)
+            VALUES (?, ?, ?, ?, 0, ?)
             ON CONFLICT(path) DO UPDATE SET
                 name = excluded.name,
                 description = excluded.description,
                 website = excluded.website,
-                deletable = 0
+                deletable = 0,
+                terminal = excluded.terminal
             """.trimIndent()
         ).use { ps ->
             ps.setString(1, tool.name)
             ps.setString(2, tool.description)
             ps.setString(3, tool.website)
             ps.setString(4, tool.scriptPath)
+            ps.setBoolean(5, tool.terminal)
             ps.executeUpdate()
         }
     }
@@ -248,26 +262,31 @@ object ulxDB {
      * Añade un script a la lista.
      *
      * `path` tiene UNIQUE: si el archivo ya estaba añadido, en vez de duplicar la
-     * entrada se actualizan nombre y web. Así "re-añadir" el mismo archivo sirve
-     * para editarlo, sin necesidad de pantalla de edición aparte.
+     * entrada se actualizan nombre, web y el modo de lanzamiento. Así
+     * "re-añadir" el mismo archivo sirve para editarlo, sin necesidad de
+     * pantalla de edición aparte.
      *
-     * Por defecto `deletable = true` (script del usuario). Las herramientas
-     * incluidas de serie se registran con `false` vía `seedSystemTools()`.
+     * Por defecto `deletable = true` (script del usuario) y `terminal = true`
+     * (se lanza en terminal, como siempre). Las herramientas incluidas de serie
+     * se registran con `deletable = false` vía `seedSystemTools()`.
      */
     @Synchronized
-    fun upsertScript(name: String, website: String?, path: String) {
+    fun upsertScript(name: String, website: String?, path: String, terminal: Boolean = true) {
         connect()
         connection!!.prepareStatement(
             """
-            INSERT INTO scripts (name, website, path, deletable) VALUES (?, ?, ?, 1)
+            INSERT INTO scripts (name, website, path, deletable, terminal)
+            VALUES (?, ?, ?, 1, ?)
             ON CONFLICT(path) DO UPDATE SET
                 name = excluded.name,
-                website = excluded.website
+                website = excluded.website,
+                terminal = excluded.terminal
             """.trimIndent()
         ).use { ps ->
             ps.setString(1, name)
             ps.setString(2, website)
             ps.setString(3, path)
+            ps.setBoolean(4, terminal)
             ps.executeUpdate()
         }
     }
@@ -295,7 +314,8 @@ object ulxDB {
         connect()
         connection!!.createStatement().use { st ->
             st.executeQuery(
-                "SELECT id, name, description, website, path, deletable FROM scripts ORDER BY name"
+                "SELECT id, name, description, website, path, deletable, terminal" +
+                    " FROM scripts ORDER BY name"
             ).use { rs ->
                 val list = mutableListOf<ScriptMeta>()
                 while (rs.next()) {
@@ -305,7 +325,8 @@ object ulxDB {
                         description = rs.getString(3),
                         website = rs.getString(4),
                         path = rs.getString(5),
-                        deletable = rs.getBoolean(6)
+                        deletable = rs.getBoolean(6),
+                        terminal = rs.getBoolean(7)
                     )
                 }
                 return list

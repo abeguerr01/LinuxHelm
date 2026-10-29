@@ -41,11 +41,15 @@ se quedan en el repositorio: la carpeta `tools/` en el equipo del usuario queda
 {
   "name": "Nombre de la Herramienta",
   "description": "Descripción detallada",
-  "website": "https://ejemplo.com"
+  "website": "https://ejemplo.com",
+  "terminal": true
 }
 ```
 
-- Los tres campos son opcionales; si falta `name`, se usa el nombre de la carpeta.
+- Los campos son opcionales; si falta `name`, se usa el nombre de la carpeta.
+- `terminal` (por defecto `true`): `false` para apps **gráficas (GUI)** — la app las
+  lanza directamente, sin abrir una ventana de terminal que solo estorbaría.
+  P. ej. `ulxTarGzInstaller` lo declara así en su `metadata.json`.
 - El ejecutable principal es el fichero cuyo nombre (sin extensión) coincide con
   el de la carpeta; si no coincide ninguno, uno con extensión conocida y, en su
   defecto, uno sin extensión (determinista). La app sabe lanzar todos estos tipos

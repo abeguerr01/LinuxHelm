@@ -290,7 +290,7 @@ settings (key PRIMARY KEY, value)
 ### System tools
 
 Each tool lives in `ulxTools/<name>/` with its executable and a mandatory
-`metadata.json` (`name`, `description`, `website`). `shared/build.gradle.kts` copies
+`metadata.json` (`name`, `description`, `website`, plus optional `terminal`). `shared/build.gradle.kts` copies
 every folder **into the JAR** as a resource tree under the `ULXTools/` prefix
 (`jvmProcessResources`). At runtime, `ulxDB.seedSystemTools()`:
 
@@ -316,6 +316,10 @@ new tool: [`ulxTools/README.md`](./ulxTools/README.md).
 `ProcessBuilder`. Why a terminal instead of a background process? So the user can
 interact: prompts, stdin and the `sudo` password (asked by the terminal itself).
 
+- **No terminal when not needed** (`terminal = false`): GUI applications are launched
+  directly with `openScriptDirect()` — no terminal window — and the UI warns if the
+  process fails to even start. Declared in the system tool's `metadata.json`, or via
+  the checkbox in the "Add script" dialog for user scripts (BD `terminal` column).
 - List of known terminals from most to least likely, with two invocation styles: those
   taking the command as a string after `-e` (gnome-terminal, xfce4-terminal…) and those
   taking separate argv (konsole, xterm, kitty…).
