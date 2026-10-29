@@ -34,6 +34,7 @@ en `/opt/`, que se lanza sin terminal).
 - [Apartado técnico](#apartado-técnico)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Mapa de módulos](#mapa-de-módulos)
+- [Versión y actualizaciones](#versión-y-actualizaciones)
 - [Tests](#tests)
 
 ---
@@ -43,9 +44,9 @@ en `/opt/`, que se lanza sin terminal).
 | Pantalla | Qué ofrece |
 |---|---|
 | **Principal** | Menú de acceso con el logo de la app. |
-| **Información** | Gestor de paquetes detectado (con enlace a su wiki) y lista de discos con tamaño, uso y estado de salud (comprobación rápida y profunda). |
+| **Información** | Gestor de paquetes detectado (con enlace a su wiki), lista de discos con tamaño, uso y estado de salud (comprobación rápida y profunda) y ficha **Equipo** (CPU, RAM, temperaturas, uptime, kernel, distribución y escritorio). |
 | **Herramientas** | Lanzador de scripts: añade `.sh`, `.jar`, `.py`, `.AppImage`, binarios… y ejecútalos en terminal —o directamente, sin terminal, en apps gráficas (GUI). |
-| **Configuración** | Selector de idioma, tema (claro/oscuro) y escala de interfaz (100–200%), guardados al instante. |
+| **Configuración** | Selector de idioma, tema (claro/oscuro) y escala de interfaz (100–200%), guardados al instante. Más una tarjeta **Acerca de** con la versión y la comprobación de actualizaciones. |
 
 Detalles útiles:
 
@@ -156,6 +157,12 @@ la izquierda.
   contadores de errores del kernel en `/sys/fs/...` para ext4/btrfs y si alguna unidad
   está montada en solo lectura. Si no puede verificar nada, lo pone como "Sin comprobar"
   (nunca marca como correcto algo que no pudo comprobar).
+- **Tarjeta "Equipo"**: justo debajo del gestor de paquetes (y encima de las unidades
+  de almacenamiento) lee `/proc`, `/etc/os-release` y `/sys/class/thermal` (sin
+  procesos ni dependencias) y muestra CPU (modelo y núcleos), carga media, RAM
+  usada/total, temperaturas (CPU/NVMe si hay sensor), tiempo encendido, kernel,
+  distribución y escritorio. Los campos que el sistema no proporciona simplemente no se
+  pintan.
 
 ### Herramientas
 
@@ -207,6 +214,13 @@ Tres controles dentro de una tarjeta:
 
 Los tres ajustes se guardan en la base de datos; la próxima vez que abras la app ya
 saldrán aplicados (sin parpadeo del tema/idioma por defecto).
+
+Debajo, la tarjeta **Acerca de** muestra la **versión** de la app (la misma que trae el
+paquete instalado: la única fuente es `APP_VERSION` en `gradle.properties`) y un botón
+**Comprobar actualizaciones**, que consulta el último release público de GitHub y
+compara versiones. El chequeo es **manual** a propósito (cada pulsación es 1 llamada
+anónima a la API, que tiene límite): verde = última versión, amarillo = hay una nueva
+(con su tag), rojo = no se pudo comprobar (sin red, API caída…).
 
 ---
 
@@ -267,9 +281,9 @@ LinuxHelm/
 │       │   ├── compose/
 │       │   │   ├── Screen.kt              # enum Pantalla + BotonVolver
 │       │   │   ├── ScreenPrincipal.kt     # Menú principal
-│       │   │   ├── ScreenInfo.kt          # Discos, paquetes, chequeos
+│       │   │   ├── ScreenInfo.kt          # Discos, paquetes, equipo y salud
 │       │   │   ├── ScreenTools.kt         # Lanzador de scripts
-│       │   │   └── ScreenConfiguracion.kt # Idioma, tema y escala
+│       │   │   └── ScreenConfiguracion.kt # Idioma, tema, escala y acerca de
 │       │   ├── ulxComponentes/        # MenuSelector (desplegable genérico de ajustes)
 │       │   └── ulxLib/                # Toda la lógica (ver Mapa de módulos)
 │       └── composeResources/          # logo, etc.
@@ -289,9 +303,9 @@ nunca al revés, así que probar la lógica no requiere abrir ninguna ventana.
 |---|---|
 | `Screen.kt` | Enum `Pantalla` de navegación + botón `BotonVolver` |
 | `ScreenPrincipal.kt` | Menú principal |
-| `ScreenInfo.kt` | Discos, paquetes y chequeos de salud |
+| `ScreenInfo.kt` | Discos, paquetes, equipo y chequeos de salud |
 | `ScreenTools.kt` | Lista de scripts: ejecutar, añadir, quitar y sus diálogos |
-| `ScreenConfiguracion.kt` | Idioma, tema y escala de interfaz |
+| `ScreenConfiguracion.kt` | Idioma, tema, escala y "Acerca de" |
 
 > Excepción preexistente: `ScreenInfo.kt` trae además su propia lógica de consulta al
 > sistema (`getDiskInfo()` leyendo `lsblk`, `quickCheck()`/`deepCheck()` con `pkexec`,
@@ -305,12 +319,15 @@ nunca al revés, así que probar la lógica no requiere abrir ninguna ventana.
 | `ulxScripts.kt` | Lanzamiento de scripts | `buildCommand()` (comando según extensión), `needsExecuteBit()`, `openScriptInTerminal()` (terminal con salida legible al final), `openScriptDirect()` (apps GUI **sin** terminal), `pickScriptFile()` (kdialog → zenity → JFileChooser) |
 | `ulxDB.kt` | Persistencia: SQLite en `~/.config/ulx/LinuxHelm/lh.db` | `connect()` + migraciones de columnas, `seedSystemTools()` (despliega `ulxTools/` en cada arranque), `upsertScript()` / `deleteScript()` / `getAllScripts()`, ajustes clave-valor |
 | `ulxSystemTools.kt` | Descubrimiento de herramientas (funciones puras, testeables) | `discoverTools()` recursivo, `findMainExecutable()`, parsers JSON mínimos (`jsonStringField` / `jsonBoolField`), `extractResourceTree()` (árbol desde disco en dev o desde dentro del JAR empaquetado) |
+| `ulxSysInfo.kt` | Datos del equipo (tarjeta Equipo de Información) | Parsers puros de `/proc` (cpuinfo, meminfo, uptime, loadavg), `/etc/os-release` y térmicas de `/sys/class/thermal`; `leerEquipo()`, `formatUptime()`, `formatRam()` |
+| `ulxAbout.kt` | Versión y actualizaciones | `versionDeLaApp()` (recurso `ulxVersion.properties` generado por Gradle), `consultarUltimaVersion()` (último release de GitHub), `compararVersiones()` / `esVersionMasNueva()` |
 | `ulxSettings.kt` | Ajustes globales (idioma, tema, escala) con caché en memoria | `loadAndApply()` antes del primer pintado (sin parpadeo); la escala es observable y reescala la UI en caliente |
 | `ulxLang.kt` / `ulxLangManager.kt` | Textos de la UI (i18n: EN, ES, ZH, PT) | `applySaved(lang)` + `setEnglish()` / `setSpanish()` / `setChinese()` / `setPortuguese()` |
 | `ulxColor.kt` / `ulxColorManager.kt` | Paleta observable y temas | `setLight()` / `setDark()` / `colorScheme()`; las pantallas jamás crean `Color()` a mano |
 
-Los cubren los tests: `UlxScriptsTest` (lanzamiento), `UlxSystemToolsTest`
-(descubrimiento y parsers) y `SharedCommonTest` / `SharedLogicDesktopTest`.
+Los cubren los tests: `UlxScriptsTest` (lanzamiento), `UlxSystemToolsTest` y
+`UlxSysInfoTest` (parsers), `UlxAboutTest` (versión y comparación de releases) y
+`SharedCommonTest` / `SharedLogicDesktopTest`.
 
 ### Navegación
 
@@ -450,6 +467,24 @@ lee una vez al arrancar y queda en caché en memoria (ninguna query SQLite dentr
 composición). Al cambiar ajustes en Configuración, `saveLang`/`saveTheme`/`saveEscala`
 actualizan caché + aplican + persisten en IO.
 
+### Versión y actualizaciones
+
+La versión de la app vive en **una sola fuente**: `APP_VERSION` en `gradle.properties`.
+
+- `desktopApp` la usa para empaquetar (`packageVersion` del .deb/.rpm y los nombres del
+  tar.gz y del AppImage).
+- `shared/build.gradle.kts` la embebe en el classpath como recurso
+  `ulxVersion.properties`, que `UlxAbout` (`ulxLib/ulxAbout.kt`) lee al abrir
+  Configuración: lo que ves en "Acerca de" es exactamente lo que empaqueta.
+- **Comprobación de actualizaciones**: el botón consulta
+  `https://api.github.com/repos/abeguerr01/LinuxHelm/releases/latest` (API pública, sin
+  autenticación y sin dependencias: `HttpURLConnection` + el parser JSON mínimo de
+  `ulxSystemTools`) y extrae el `tag_name`. La comparación de versiones es numérica por
+  segmentos (`1.10 > 1.9`, la "v" inicial es opcional y `-rc1` cuenta como
+  pre-release) y vive en funciones puras cubiertas por `UlxAboutTest`.
+- El chequeo es **manual** a propósito: el rate limit anónimo de la API son 60
+  llamadas/hora por IP, de sobra para un botón, no para un refresco automático.
+
 ### Información del sistema
 
 - `getDiskInfo()` ejecuta `lsblk -b -P` y parsea la salida (incluyendo los escapes
@@ -462,6 +497,13 @@ actualizan caché + aplican + persisten en IO.
 - `deepCheck` (con `pkexec`, solo lectura): comando según el FS, interpretando códigos
   de salida y texto (p. ej. los códigos 3/4/5 de `ntfs-3g.probe` = dañado / hibernado /
   dirty).
+- **Tarjeta "Equipo"** (`ulxLib/ulxSysInfo.kt`): parsers puros sobre texto de
+  `/proc/cpuinfo`, `/proc/meminfo`, `/proc/uptime`, `/proc/loadavg`,
+  `/etc/os-release` y las zonas térmicas de `/sys/class/thermal` (descarta lecturas
+  fuera de rango plausible y se queda con el máximo por sensor, porque la CPU tiene
+  varias zonas). Cero procesos y cero dependencias: son ficheros leídos en
+  `Dispatchers.IO` y formateados sin locale (`formatUptime` → "2d 14:03:55",
+  `formatRam` → "7.6 GB / 15.5 GB (49 %)").
 
 ---
 

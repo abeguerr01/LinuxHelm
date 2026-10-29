@@ -43,6 +43,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.linuxhelm.ui.ulxLib.EquipoInfo
+import com.example.linuxhelm.ui.ulxLib.formatRam
+import com.example.linuxhelm.ui.ulxLib.formatUptime
+import com.example.linuxhelm.ui.ulxLib.leerEquipo
 import com.example.linuxhelm.ui.ulxLib.ulxColor
 import com.example.linuxhelm.ui.ulxLib.ulxLang
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +69,11 @@ fun ScreenInfo(onVolver: () -> Unit = {}) {
     var disks by remember { mutableStateOf(emptyList<DiskInfo>()) }
     var checking by remember { mutableStateOf(emptySet<String>()) }
     var isExpanded by remember { mutableStateOf(true) }
+    var equipo by remember { mutableStateOf<EquipoInfo?>(null) }
     val scrollState = rememberScrollState()
+    // Scroll de la columna entera: la tarjeta Equipo añade alto y en ventanas
+    // bajas se cortaría sin él (la lista de discos ya tiene su propio scroll)
+    val scrollPantalla = rememberScrollState()
 
     val pm = remember { detectPackageManager() } ?: ulxLang.NoPackageManagerFound
 
@@ -74,12 +82,19 @@ fun ScreenInfo(onVolver: () -> Unit = {}) {
         disks = withContext(Dispatchers.IO) { getDiskInfo() }
     }
 
+    // Igual con los datos del equipo (lecturas de /proc, /etc y /sys, ver
+    // leerEquipo() en ulxLib/ulxSysInfo.kt): son ficheros, van a IO
+    LaunchedEffect(Unit) {
+        equipo = withContext(Dispatchers.IO) { leerEquipo() }
+    }
+
     Column(
         modifier = Modifier
             .background(ulxColor.fondo)
             .safeContentPadding()
             .fillMaxSize()
-            .padding(8.dp),
+            .padding(8.dp)
+            .verticalScroll(scrollPantalla),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Volver a la principal (ver BotonVolver en Screen.kt)
@@ -112,6 +127,52 @@ fun ScreenInfo(onVolver: () -> Unit = {}) {
                 wikiUrls[pm]?.let { uriHandler.openUri(it) }
             }) {
                 Text(ulxLang.VerSitio)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Tarjeta "Equipo": CPU, carga, RAM, temperaturas, uptime, kernel,
+        // sistema y escritorio. Los datos los lee ulxLib.leerEquipo() leyendo
+        // ficheros de /proc, /etc y /sys (sin procesos ni dependencias), en el
+        // LaunchedEffect de arriba.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(ulxColor.div1)
+                .padding(12.dp)
+        ) {
+            Text(
+                ulxLang.Equipo,
+                style = MaterialTheme.typography.titleSmall
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val eq = equipo
+            if (eq == null) {
+                Text(ulxLang.Cargando, style = MaterialTheme.typography.bodySmall)
+            } else {
+                FilaEquipo(
+                    ulxLang.Cpu,
+                    buildString {
+                        if (eq.cpuModelo.isNotBlank()) append(eq.cpuModelo)
+                        if (eq.cpuNucleos > 0) {
+                            if (isNotEmpty()) append("  ·  ")
+                            append("${eq.cpuNucleos} ${ulxLang.Nucleos}")
+                        }
+                    }
+                )
+                FilaEquipo(ulxLang.Carga, eq.cargaMedia)
+                FilaEquipo(ulxLang.Ram, formatRam(eq.ramTotalMb, eq.ramUsadaMb))
+                FilaEquipo(
+                    ulxLang.Temperaturas,
+                    eq.temperaturas.joinToString("   ") { "${it.etiqueta} ${it.grados} °C" }
+                )
+                FilaEquipo(ulxLang.TiempoEncendido, formatUptime(eq.uptimeSegundos))
+                FilaEquipo(ulxLang.Kernel, eq.kernel)
+                FilaEquipo(ulxLang.Sistema, eq.distro)
+                FilaEquipo(ulxLang.Escritorio, eq.escritorio)
             }
         }
 
@@ -228,6 +289,30 @@ fun ScreenInfo(onVolver: () -> Unit = {}) {
                 }
             }
         }
+
+    }
+}
+
+
+/**
+ * Fila "etiqueta — valor" de la tarjeta Equipo. Los valores vacíos no se
+ * pintan (así un sensor o campo inexistente simplemente no aparece).
+ */
+@Composable
+private fun FilaEquipo(etiqueta: String, valor: String) {
+    if (valor.isBlank()) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            etiqueta,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f)
+        )
+        Text(valor, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

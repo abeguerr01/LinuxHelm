@@ -33,6 +33,7 @@ launched without a terminal).
 - [Technical section](#technical-section)
 - [Project structure](#project-structure)
 - [Map of modules](#map-of-modules)
+- [Version and updates](#version-and-updates)
 - [Tests](#tests)
 
 ---
@@ -42,9 +43,9 @@ launched without a terminal).
 | Screen | What it offers |
 |---|---|
 | **Home** | Menu with the app logo and access to every screen. |
-| **Information** | Detected package manager (with a link to its wiki) and a disk list with size, usage and health status (quick and deep check). |
+| **Information** | Detected package manager (with a link to its wiki), a disk list with size, usage and health status (quick and deep check) and a **Machine** card (CPU, RAM, temperatures, uptime, kernel, distribution and desktop). |
 | **Tools** | Script launcher: add `.sh`, `.jar`, `.py`, `.AppImage`, binaries… and run them in a terminal —or directly, without a terminal, for GUI apps. |
-| **Settings** | Language, theme (light/dark) and UI scale (100–200%) selectors, saved instantly. |
+| **Settings** | Language, theme (light/dark) and UI scale (100–200%) selectors, saved instantly. Plus an **About** card with the version and the update check. |
 
 Useful details:
 
@@ -150,6 +151,11 @@ On launch you see the menu with three buttons: **Information**, **Tools** and
   error counters in `/sys/fs/...` for ext4/btrfs and detects drives mounted read-only.
   When it cannot verify anything, it reports "Unchecked" (it never claims something is
   fine without having verified it).
+- The **Machine** card: right below the package manager (and above the storage drives)
+  it reads `/proc`, `/etc/os-release` and `/sys/class/thermal` (no processes, no
+  dependencies) and shows CPU (model and cores), load average, RAM used/total,
+  temperatures (CPU/NVMe when a sensor exists), uptime, kernel, distribution and
+  desktop. Whatever the system does not provide simply is not drawn.
 
 ### Tools
 
@@ -199,6 +205,13 @@ Three controls inside a card:
 
 All three settings are stored in the database; the next time you open the app they are
 already applied (no flash of the default theme/language).
+
+Below, the **About** card shows the app **version** (the same one shipped in the
+installed package: the single source is `APP_VERSION` in `gradle.properties`) and a
+**Check for updates** button, which queries the latest public GitHub release and
+compares versions. The check is **manual** on purpose (every click is 1 anonymous API
+call, and there is a rate limit): green = up to date, yellow = a new version exists
+(with its tag), red = the check failed (offline, API down…).
 
 ---
 
@@ -258,9 +271,9 @@ LinuxHelm/
 │       │   ├── compose/
 │       │   │   ├── Screen.kt              # Pantalla enum + BotonVolver
 │       │   │   ├── ScreenPrincipal.kt     # Home menu
-│       │   │   ├── ScreenInfo.kt          # Disks, packages, health checks
+│       │   │   ├── ScreenInfo.kt          # Disks, packages, machine and health
 │       │   │   ├── ScreenTools.kt         # Script launcher
-│       │   │   └── ScreenConfiguracion.kt # Language, theme and scale
+│       │   │   └── ScreenConfiguracion.kt # Language, theme, scale and about
 │       │   ├── ulxComponentes/        # MenuSelector (generic settings dropdown)
 │       │   └── ulxLib/                # All the logic (see Map of modules)
 │       └── composeResources/          # logo, etc.
@@ -280,9 +293,9 @@ other way around, so testing the logic requires opening no window at all.
 |---|---|
 | `Screen.kt` | Navigation `Pantalla` enum + `BotonVolver` button |
 | `ScreenPrincipal.kt` | Home menu |
-| `ScreenInfo.kt` | Disks, packages and health checks |
+| `ScreenInfo.kt` | Disks, packages, machine and health checks |
 | `ScreenTools.kt` | Script list: run, add, remove and their dialogs |
-| `ScreenConfiguracion.kt` | Language, theme and UI scale |
+| `ScreenConfiguracion.kt` | Language, theme, scale and "About" |
 
 > Pre-existing exception: `ScreenInfo.kt` also carries its own system-query logic
 > (`getDiskInfo()` reading `lsblk`, `quickCheck()`/`deepCheck()` via `pkexec`,
@@ -296,12 +309,15 @@ other way around, so testing the logic requires opening no window at all.
 | `ulxScripts.kt` | Script launching | `buildCommand()` (command per extension), `needsExecuteBit()`, `openScriptInTerminal()` (terminal with readable output at the end), `openScriptDirect()` (GUI apps **without** terminal), `pickScriptFile()` (kdialog → zenity → JFileChooser) |
 | `ulxDB.kt` | Persistence: SQLite at `~/.config/ulx/LinuxHelm/lh.db` | `connect()` + column migrations, `seedSystemTools()` (deploys `ulxTools/` on every launch), `upsertScript()` / `deleteScript()` / `getAllScripts()`, key-value settings |
 | `ulxSystemTools.kt` | Tool discovery (pure, testable functions) | Recursive `discoverTools()`, `findMainExecutable()`, minimal JSON parsers (`jsonStringField` / `jsonBoolField`), `extractResourceTree()` (tree from disk in dev or from inside the packaged JAR) |
+| `ulxSysInfo.kt` | Machine data (the Machine card on Information) | Pure parsers for `/proc` (cpuinfo, meminfo, uptime, loadavg), `/etc/os-release` and the thermal zones in `/sys/class/thermal`; `leerEquipo()`, `formatUptime()`, `formatRam()` |
+| `ulxAbout.kt` | Version and updates | `versionDeLaApp()` (the `ulxVersion.properties` resource generated by Gradle), `consultarUltimaVersion()` (latest GitHub release), `compararVersiones()` / `esVersionMasNueva()` |
 | `ulxSettings.kt` | Global settings (language, theme, scale) with an in-memory cache | `loadAndApply()` before the first paint (no flicker); the scale is observable and rescales the UI live |
 | `ulxLang.kt` / `ulxLangManager.kt` | UI strings (i18n: EN, ES, ZH, PT) | `applySaved(lang)` + `setEnglish()` / `setSpanish()` / `setChinese()` / `setPortuguese()` |
 | `ulxColor.kt` / `ulxColorManager.kt` | Observable palette and themes | `setLight()` / `setDark()` / `colorScheme()`; screens never create a `Color()` by hand |
 
-Covered by the tests: `UlxScriptsTest` (launching), `UlxSystemToolsTest` (discovery and
-parsers) and `SharedCommonTest` / `SharedLogicDesktopTest`.
+Covered by the tests: `UlxScriptsTest` (launching), `UlxSystemToolsTest` and
+`UlxSysInfoTest` (parsers), `UlxAboutTest` (version and release comparison) and
+`SharedCommonTest` / `SharedLogicDesktopTest`.
 
 ### Navigation
 
@@ -439,6 +455,24 @@ database is read once at startup and cached in memory (no SQLite queries inside
 compositions). When settings change on the Settings screen,
 `saveLang`/`saveTheme`/`saveEscala` update the cache + apply + persist on IO.
 
+### Version and updates
+
+The app version lives in a **single source**: `APP_VERSION` in `gradle.properties`.
+
+- `desktopApp` uses it to package (`packageVersion` of the .deb/.rpm and the names of
+  the tar.gz and the AppImage).
+- `shared/build.gradle.kts` embeds it into the classpath as the `ulxVersion.properties`
+  resource, which `UlxAbout` (`ulxLib/ulxAbout.kt`) reads when Settings opens: what you
+  see in "About" is exactly what gets packaged.
+- **Update check**: the button queries
+  `https://api.github.com/repos/abeguerr01/LinuxHelm/releases/latest` (public API, no
+  authentication and no dependencies: `HttpURLConnection` plus the minimal JSON parser
+  from `ulxSystemTools`) and extracts `tag_name`. Version comparison is numeric per
+  segment (`1.10 > 1.9`, the leading "v" is optional and `-rc1` counts as a
+  pre-release) and lives in pure functions covered by `UlxAboutTest`.
+- The check is **manual** on purpose: the anonymous API rate limit is 60 calls/hour per
+  IP — plenty for a button, not for automatic refresh.
+
 ### System information
 
 - `getDiskInfo()` runs `lsblk -b -P` and parses the output (including lsblk's `\x20`
@@ -450,6 +484,12 @@ compositions). When settings change on the Settings screen,
 - `deepCheck` (with `pkexec`, read-only): a filesystem-dependent command, interpreting
   both exit codes and output text (e.g. `ntfs-3g.probe` codes 3/4/5 = damaged /
   hibernated / dirty).
+- The **Machine** card (`ulxLib/ulxSysInfo.kt`): pure text parsers over
+  `/proc/cpuinfo`, `/proc/meminfo`, `/proc/uptime`, `/proc/loadavg`, `/etc/os-release`
+  and the thermal zones in `/sys/class/thermal` (readings outside the plausible range
+  are discarded and the hottest per sensor wins, since a CPU exposes several zones). No
+  processes and no dependencies: files read on `Dispatchers.IO` and formatted
+  locale-free (`formatUptime` → "2d 14:03:55", `formatRam` → "7.6 GB / 15.5 GB (49 %)").
 
 ---
 

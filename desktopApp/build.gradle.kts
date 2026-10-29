@@ -8,6 +8,11 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
+// Versión de la app: única fuente en gradle.properties (APP_VERSION). La misma
+// cifra empaqueta y la que UlxAbout enseña en "Acerca de" (vía el recurso
+// ulxVersion.properties que genera :shared).
+val appVersion: String = (project.findProperty("APP_VERSION") as String?) ?: "1.0.0"
+
 dependencies {
     implementation(project(":shared"))
 
@@ -29,7 +34,7 @@ compose.desktop {
             // conserva el original para lo visible: el .desktop del menú de
             // aplicaciones muestra "Name=Linux Helm".
             packageName = "Linux Helm"
-            packageVersion = "1.0.0"
+            packageVersion = appVersion
             // Módulos AÑADIDOS al runtime recortado (jlink). Compose Desktop solo
             // empaqueta 7 módulos por defecto (java.base, java.desktop, java.xml,
             // java.prefs, java.logging, java.datatransfer, jdk.crypto.ec) y sin
@@ -66,7 +71,7 @@ val packageTarGz = tasks.register<Tar>("packageTarGz") {
     useFileSystemPermissions()
 
     val arch = System.getProperty("os.arch").let { if (it == "amd64") "x86_64" else it }
-    archiveFileName.set("linux-helm-1.0.0-linux-$arch.tar.gz")
+    archiveFileName.set("linux-helm-$appVersion-linux-$arch.tar.gz")
     destinationDirectory.set(layout.buildDirectory.dir("compose/binaries/main/tar"))
     from(layout.buildDirectory.dir("compose/binaries/main/app"))
     compression = Compression.GZIP
@@ -114,7 +119,7 @@ val packageAppImage = tasks.register<Exec>("packageAppImage") {
 
     val appDir = layout.buildDirectory.dir("compose/binaries/main/appimage/AppDir")
     val outputFile = layout.buildDirectory.file(
-        "compose/binaries/main/appimage/linux-helm-1.0.0-linux-$appImageArch.AppImage"
+        "compose/binaries/main/appimage/linux-helm-$appVersion-linux-$appImageArch.AppImage"
     )
     inputs.dir(appDir)
     outputs.file(outputFile)
