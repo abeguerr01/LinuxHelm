@@ -138,6 +138,50 @@ fun openScriptInTerminal(path: String, args: List<String> = emptyList()): Boolea
 }
 
 /**
+ * Ejecuta el programa directamente, SIN terminal: para apps gráficas (GUI),
+ * donde una ventana de terminal solo estorba y su "pulsa una tecla para
+ * cerrar" no tiene sentido.
+ *
+ * La salida (stdout/stderr) y la entrada van a /dev/null: una app gráfica no
+ * las usa, y así el proceso no puede quedarse colgado ni desbordar un buffer.
+ * El directorio de trabajo es la carpeta del programa, igual que en terminal.
+ *
+ * Se espera [ESPERA_COMPROBACION] ms y se mira si el proceso ya murió con
+ * error: así un binario que ni siquiera arranca (librería rota, ELF
+ * incompatible…) se reporta en la UI en vez de fallar en silencio.
+ *
+ * Devuelve false si el proceso no pudo siquiera crearse o salió con error
+ * inmediato. Llamar desde `Dispatchers.IO`.
+ */
+fun openScriptDirect(path: String, args: List<String> = emptyList()): Boolean {
+    val proceso = try {
+        ProcessBuilder(buildCommand(path, args))
+            .directory(File(path).absoluteFile.parentFile)
+            // OJO: Redirect.DISCARD solo vale para ESCRITURA (stdout/stderr);
+            // para la entrada Java lanza IllegalArgumentException y el proceso
+            // ni siquiera llegaría a arrancar. La entrada se vacía con /dev/null.
+            .redirectInput(File("/dev/null"))
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+    } catch (e: Exception) {
+        System.err.println("ULX: no se pudo lanzar $path: $e")
+        return false
+    }
+    return try {
+        Thread.sleep(ESPERA_COMPROBACION)
+        // isAlive PRIMERO: exitValue() revienta con IllegalThreadStateException
+        // si el proceso sigue vivo (que es lo normal en una app gráfica a los 400ms).
+        proceso.isAlive || proceso.exitValue() == 0
+    } catch (e: InterruptedException) {
+        true   // interrumpido el hilo de IO: el proceso corre, se le deja correr
+    }
+}
+
+/** Ms que se espera antes de comprobar si un lanzamiento directo murió al instante. */
+private const val ESPERA_COMPROBACION = 400L
+
+/**
  * Abre un diálogo para elegir UN archivo ejecutable. Devuelve la ruta absoluta
  * elegida, o null si el usuario canceló.
  *

@@ -1,0 +1,6 @@
+{
+  "name": "ulxOptAppManager",
+  "description": "EN: Manager for apps installed in /opt/\nES: Gestor para aplicaciones instaladas en /opt/",
+  "website": "https://github.com/abeguerr01/LinuxHelmTools/tree/main/ulxOptAppManager",
+  "terminal": false
+}

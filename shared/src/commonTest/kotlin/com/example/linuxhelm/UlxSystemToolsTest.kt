@@ -1,6 +1,7 @@
 package com.example.linuxhelm
 
 import com.example.linuxhelm.ui.ulxLib.discoverTools
+import com.example.linuxhelm.ui.ulxLib.jsonBoolField
 import com.example.linuxhelm.ui.ulxLib.jsonStringField
 import java.io.File
 import java.nio.file.Files
@@ -143,5 +144,34 @@ class UlxSystemToolsTest {
         File(d, "README.md").writeText("hola")
 
         assertTrue(discoverTools(tmp).isEmpty())
+    }
+
+    @Test
+    fun `lee el flag terminal del metadata y si no está asume true`() {
+        // Herramienta GUI: "terminal": false en su metadata.json
+        val gui = dir("gui-app")
+        File(gui, "gui-app.sh").writeText("#!/bin/sh\n")
+        File(gui, "metadata.json").writeText("""{"name":"GUI","terminal":false}""")
+
+        // Herramienta de terminal (como siempre): sin el campo
+        val cli = dir("cli-app")
+        File(cli, "cli-app.sh").writeText("#!/bin/sh\n")
+        File(cli, "metadata.json").writeText("""{"name":"CLI"}""")
+
+        val tools = discoverTools(tmp).associateBy { it.name }
+        assertEquals(false, tools.getValue("GUI").terminal)
+        assertEquals(true, tools.getValue("CLI").terminal)
+    }
+
+    @Test
+    fun `parsea booleanos del metadata (true, false y basura)`() {
+        assertEquals(true, jsonBoolField("""{"terminal":true}""", "terminal"))
+        assertEquals(true, jsonBoolField("""{ "terminal" : true }""", "terminal"))
+        assertEquals(false, jsonBoolField("""{"terminal":false}""", "terminal"))
+        assertEquals(false, jsonBoolField("""{"terminal": false, "otro": 1}""", "terminal"))
+        // Ausente o con un valor que no es booleano literal -> null (aplica default)
+        assertNull(jsonBoolField("""{"otro":"x"}""", "terminal"))
+        assertNull(jsonBoolField("""{"terminal":"false"}""", "terminal"))
+        assertNull(jsonBoolField("""{"terminal":truex}""", "terminal"))
     }
 }

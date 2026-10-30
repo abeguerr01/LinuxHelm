@@ -32,6 +32,30 @@ object ulxLangManager {
         ulxLang.SinTerminalDetalle = "Instala una terminal (gnome-terminal, konsole, xterm…) para ejecutar scripts"
         ulxLang.TerminalSalioCon = "terminó con código de salida"
         ulxLang.TerminalPulsaTecla = "Pulsa una tecla para cerrar"
+        ulxLang.SinTerminalOpcion = "Ejecutar sin terminal (aplicaciones gráficas)"
+        ulxLang.ErrorAlEjecutar = "No se pudo iniciar el programa"
+        ulxLang.ErrorAlEjecutarDetalle =
+            "Puede que no sea un programa ejecutable en este sistema (arquitectura, dependencias…)."
+        // Tarjeta "Equipo"
+        ulxLang.Equipo = "Equipo"
+        ulxLang.Cpu = "CPU"
+        ulxLang.Nucleos = "núcleos"
+        ulxLang.Carga = "Carga"
+        ulxLang.Ram = "RAM"
+        ulxLang.Temperaturas = "Temperaturas"
+        ulxLang.TiempoEncendido = "Tiempo encendido"
+        ulxLang.Kernel = "Kernel"
+        ulxLang.Sistema = "Sistema"
+        ulxLang.Escritorio = "Escritorio"
+        ulxLang.Cargando = "Cargando…"
+        // "Acerca de"
+        ulxLang.AcercaDe = "Acerca de"
+        ulxLang.Version = "Versión"
+        ulxLang.ComprobarActualizaciones = "Comprobar actualizaciones"
+        ulxLang.Comprobando = "Comprobando…"
+        ulxLang.UltimaVersion = "Estás en la última versión"
+        ulxLang.NuevaVersionDisponible = "Hay una nueva versión disponible"
+        ulxLang.ErrorAlComprobar = "No se pudo comprobar las actualizaciones"
     }
 
     fun setEnglish(){
@@ -65,6 +89,30 @@ object ulxLangManager {
         ulxLang.SinTerminalDetalle = "Install a terminal (gnome-terminal, konsole, xterm…) to run scripts"
         ulxLang.TerminalSalioCon = "finished with exit code"
         ulxLang.TerminalPulsaTecla = "Press any key to close"
+        ulxLang.SinTerminalOpcion = "Run without terminal (GUI applications)"
+        ulxLang.ErrorAlEjecutar = "Could not start the program"
+        ulxLang.ErrorAlEjecutarDetalle =
+            "It may not be an executable that works on this system (architecture, dependencies…)."
+        // Machine card
+        ulxLang.Equipo = "Machine"
+        ulxLang.Cpu = "CPU"
+        ulxLang.Nucleos = "cores"
+        ulxLang.Carga = "Load"
+        ulxLang.Ram = "RAM"
+        ulxLang.Temperaturas = "Temperatures"
+        ulxLang.TiempoEncendido = "Uptime"
+        ulxLang.Kernel = "Kernel"
+        ulxLang.Sistema = "System"
+        ulxLang.Escritorio = "Desktop"
+        ulxLang.Cargando = "Loading…"
+        // About
+        ulxLang.AcercaDe = "About"
+        ulxLang.Version = "Version"
+        ulxLang.ComprobarActualizaciones = "Check for updates"
+        ulxLang.Comprobando = "Checking…"
+        ulxLang.UltimaVersion = "You are on the latest version"
+        ulxLang.NuevaVersionDisponible = "A new version is available"
+        ulxLang.ErrorAlComprobar = "Could not check for updates"
     }
 
     fun setChinese() {
@@ -98,6 +146,30 @@ object ulxLangManager {
         ulxLang.SinTerminalDetalle = "安装终端（gnome-terminal、konsole、xterm…）以运行脚本"
         ulxLang.TerminalSalioCon = "以退出代码结束"
         ulxLang.TerminalPulsaTecla = "按任意键关闭"
+        ulxLang.SinTerminalOpcion = "无终端运行（图形应用）"
+        ulxLang.ErrorAlEjecutar = "无法启动程序"
+        ulxLang.ErrorAlEjecutarDetalle =
+            "该程序可能无法在此系统上运行（架构、依赖…）。"
+        // “主机”信息卡片
+        ulxLang.Equipo = "主机"
+        ulxLang.Cpu = "CPU"
+        ulxLang.Nucleos = "核心"
+        ulxLang.Carga = "负载"
+        ulxLang.Ram = "RAM"
+        ulxLang.Temperaturas = "温度"
+        ulxLang.TiempoEncendido = "运行时间"
+        ulxLang.Kernel = "内核"
+        ulxLang.Sistema = "系统"
+        ulxLang.Escritorio = "桌面环境"
+        ulxLang.Cargando = "加载中…"
+        // “关于”
+        ulxLang.AcercaDe = "关于"
+        ulxLang.Version = "版本"
+        ulxLang.ComprobarActualizaciones = "检查更新"
+        ulxLang.Comprobando = "检查中…"
+        ulxLang.UltimaVersion = "你已是最新版本"
+        ulxLang.NuevaVersionDisponible = "有新版本可用"
+        ulxLang.ErrorAlComprobar = "无法检查更新"
     }
 
     fun setPortuguese() {
@@ -131,6 +203,30 @@ object ulxLangManager {
         ulxLang.SinTerminalDetalle = "Instale um terminal (gnome-terminal, konsole, xterm…) para executar scripts"
         ulxLang.TerminalSalioCon = "terminou com código de saída"
         ulxLang.TerminalPulsaTecla = "Pressione qualquer tecla para fechar"
+        ulxLang.SinTerminalOpcion = "Executar sem terminal (aplicativos gráficos)"
+        ulxLang.ErrorAlEjecutar = "Não foi possível iniciar o programa"
+        ulxLang.ErrorAlEjecutarDetalle =
+            "Pode não ser um executável compatível com este sistema (arquitetura, dependências…)."
+        // Card "Computador"
+        ulxLang.Equipo = "Computador"
+        ulxLang.Cpu = "CPU"
+        ulxLang.Nucleos = "núcleos"
+        ulxLang.Carga = "Carga"
+        ulxLang.Ram = "RAM"
+        ulxLang.Temperaturas = "Temperaturas"
+        ulxLang.TiempoEncendido = "Tempo ligado"
+        ulxLang.Kernel = "Kernel"
+        ulxLang.Sistema = "Sistema"
+        ulxLang.Escritorio = "Área de trabalho"
+        ulxLang.Cargando = "Carregando…"
+        // "Sobre"
+        ulxLang.AcercaDe = "Sobre"
+        ulxLang.Version = "Versão"
+        ulxLang.ComprobarActualizaciones = "Verificar atualizações"
+        ulxLang.Comprobando = "Verificando…"
+        ulxLang.UltimaVersion = "Você está na versão mais recente"
+        ulxLang.NuevaVersionDisponible = "Uma nova versão está disponível"
+        ulxLang.ErrorAlComprobar = "Não foi possível verificar as atualizações"
     }
 
     /**

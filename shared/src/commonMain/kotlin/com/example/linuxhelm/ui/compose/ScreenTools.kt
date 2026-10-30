@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.linuxhelm.ui.ulxLib.ScriptMeta
 import com.example.linuxhelm.ui.ulxLib.needsExecuteBit
+import com.example.linuxhelm.ui.ulxLib.openScriptDirect
 import com.example.linuxhelm.ui.ulxLib.openScriptInTerminal
 import com.example.linuxhelm.ui.ulxLib.pickScriptFile
 import com.example.linuxhelm.ui.ulxLib.ulxDB
@@ -56,11 +58,15 @@ import java.io.File
 /**
  * Estado del diálogo "Añadir script": nombre + web que el usuario rellena
  * para el archivo que acaba de elegir con el diálogo nativo.
+ *
+ * [sinTerminal] marca el lanzamiento directo, sin ventana de terminal, para
+ * apps gráficas (GUI): se guarda en la columna `terminal` de la BD.
  */
 private data class AddDialogState(
     val path: String,
     val name: String,
-    val website: String
+    val website: String,
+    val sinTerminal: Boolean = false
 )
 
 @Preview
@@ -82,6 +88,8 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
     // Diálogos
     var addDialog by remember { mutableStateOf<AddDialogState?>(null) }
     var noTerminal by remember { mutableStateOf(false) }
+    // Lanzamiento directo (sin terminal) que ni siquiera arrancó
+    var errorAlEjecutar by remember { mutableStateOf<String?>(null) }
 
     val scrollState = rememberScrollState()
 
@@ -115,15 +123,24 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
     LaunchedEffect(Unit) { reloadScripts() }
 
     /**
-     * Lanza el script en una ventana de terminal del sistema.
+     * Lanza el script: en terminal del sistema (por defecto) o directamente.
      *
-     * La terminal gestiona la interacción del script (prompts, sudo, stdin):
-     * aquí solo se abre el proceso y se avisa si no hay terminal instalada.
+     * La terminal gestiona la interacción del script (prompts, sudo, stdin).
+     * Las apps gráficas se marcan "sin terminal" (metadata.json de las
+     * herramientas del sistema, o el checkbox al añadir un script): se lanzan
+     * directamente con [openScriptDirect] y la UI avisa si ni siquiera arranca.
      */
     fun runScript(meta: ScriptMeta) {
         scope.launch {
-            val ok = withContext(Dispatchers.IO) { openScriptInTerminal(meta.path) }
-            if (!ok) noTerminal = true
+            val ok = withContext(Dispatchers.IO) {
+                if (meta.terminal) openScriptInTerminal(meta.path)
+                else openScriptDirect(meta.path)
+            }
+            when {
+                ok -> {}
+                meta.terminal -> noTerminal = true
+                else -> errorAlEjecutar = meta.path
+            }
         }
     }
 
@@ -247,6 +264,18 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
                         label = { Text(ulxLang.SitioWeb) },
                         singleLine = true
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = state.sinTerminal,
+                            onCheckedChange = { addDialog = state.copy(sinTerminal = it) }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = ulxLang.SinTerminalOpcion,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -256,7 +285,10 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
                     addDialog = null
                     scope.launch {
                         withContext(Dispatchers.IO) {
-                            ulxDB.upsertScript(name = name, website = website, path = state.path)
+                            ulxDB.upsertScript(
+                                name = name, website = website, path = state.path,
+                                terminal = !state.sinTerminal
+                            )
                         }
                         // Recarga la lista desde la BD
                         reloadScripts()
@@ -281,6 +313,24 @@ fun ScreenTools(onVolver: () -> Unit = {}) {
             text = { Text(ulxLang.SinTerminalDetalle) },
             confirmButton = {
                 TextButton(onClick = { noTerminal = false }) {
+                    Text(ulxLang.Cerrar)
+                }
+            }
+        )
+    }
+
+    // ===== Diálogo: un lanzamiento directo (sin terminal) ni siquiera arrancó =====
+    errorAlEjecutar?.let { ruta ->
+        AlertDialog(
+            onDismissRequest = { errorAlEjecutar = null },
+            title = { Text(ulxLang.ErrorAlEjecutar) },
+            text = {
+                Text(
+                    text = "${File(ruta).name}\n\n" + ulxLang.ErrorAlEjecutarDetalle
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { errorAlEjecutar = null }) {
                     Text(ulxLang.Cerrar)
                 }
             }

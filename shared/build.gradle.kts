@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.Copy
+import java.io.File
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -35,8 +36,24 @@ kotlin {
 // despliega SOLO el ejecutable en ~/.config/ulx/LinuxHelm/tools/ (+x) y lee el
 // metadata.json para registrar la herramienta como no borrable. Al viajar en el
 // classpath, funciona igual con run, .deb, AppImage o tar.gz.
+//
+// Además embebe ulxVersion.properties con APP_VERSION (gradle.properties): es
+// la única fuente de la versión, la que UlxAbout lee en "Acerca de" y la que
+// usa desktopApp para nombrar los paquetes.
+val appVersion: String = (project.findProperty("APP_VERSION") as String?) ?: "0.0.0"
+
 tasks.named<Copy>("jvmProcessResources") {
     from(rootProject.file("ulxTools")) {
         into("ULXTools")
+    }
+    // Los vals locales dentro del bloque son IMPORTANTES con la configuration
+    // cache: la acción doLast solo puede capturar valores serializables (File,
+    // String), nunca referencias al script.
+    val version = appVersion
+    val destino = layout.buildDirectory.dir("processedResources/jvm/main").get().asFile
+    doLast {
+        val salida = File(destino, "ulxVersion.properties")
+        salida.parentFile.mkdirs()
+        salida.writeText("version=$version\n")
     }
 }
