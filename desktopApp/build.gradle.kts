@@ -8,10 +8,10 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-// Versión de la app: única fuente en gradle.properties (APP_VERSION). La misma
-// cifra empaqueta y la que UlxAbout enseña en "Acerca de" (vía el recurso
-// ulxVersion.properties que genera :shared).
-val appVersion: String = (project.findProperty("APP_VERSION") as String?) ?: "1.0.0"
+// Versión de EMPAQUETADO: única fuente = ÚLTIMO TAG GIT (v1, v2…), calculado
+// en el build raíz (ver build.gradle.kts de la raíz). Solo metadato del
+// paquete (.deb/.rpm); la app no muestra ninguna versión.
+val appVersion: String = rootProject.extra["linuxHelmVersion"] as String
 
 dependencies {
     implementation(project(":shared"))

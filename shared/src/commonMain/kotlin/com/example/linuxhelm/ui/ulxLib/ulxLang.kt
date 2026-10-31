@@ -53,12 +53,4 @@ object ulxLang {
     var Sistema = "System"
     var Escritorio = "Desktop"
     var Cargando = "Loading…"
-    // ScreenConfiguracion — "Acerca de"
-    var AcercaDe = "About"
-    var Version = "Version"
-    var ComprobarActualizaciones = "Check for updates"
-    var Comprobando = "Checking…"
-    var UltimaVersion = "You are on the latest version"
-    var NuevaVersionDisponible = "A new version is available"
-    var ErrorAlComprobar = "Could not check for updates"
 }

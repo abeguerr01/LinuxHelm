@@ -34,7 +34,6 @@ en `/opt/`, que se lanza sin terminal).
 - [Apartado técnico](#apartado-técnico)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Mapa de módulos](#mapa-de-módulos)
-- [Versión y actualizaciones](#versión-y-actualizaciones)
 - [Tests](#tests)
 
 ---
@@ -46,7 +45,7 @@ en `/opt/`, que se lanza sin terminal).
 | **Principal** | Menú de acceso con el logo de la app. |
 | **Información** | Gestor de paquetes detectado (con enlace a su wiki), lista de discos con tamaño, uso y estado de salud (comprobación rápida y profunda) y ficha **Equipo** (CPU, RAM, temperaturas, uptime, kernel, distribución y escritorio). |
 | **Herramientas** | Lanzador de scripts: añade `.sh`, `.jar`, `.py`, `.AppImage`, binarios… y ejecútalos en terminal —o directamente, sin terminal, en apps gráficas (GUI). |
-| **Configuración** | Selector de idioma, tema (claro/oscuro) y escala de interfaz (100–200%), guardados al instante. Más una tarjeta **Acerca de** con la versión y la comprobación de actualizaciones. |
+| **Configuración** | Selector de idioma, tema (claro/oscuro) y escala de interfaz (100–200%), guardados al instante. |
 
 Detalles útiles:
 
@@ -215,13 +214,6 @@ Tres controles dentro de una tarjeta:
 Los tres ajustes se guardan en la base de datos; la próxima vez que abras la app ya
 saldrán aplicados (sin parpadeo del tema/idioma por defecto).
 
-Debajo, la tarjeta **Acerca de** muestra la **versión** de la app (la misma que trae el
-paquete instalado: la única fuente es `APP_VERSION` en `gradle.properties`) y un botón
-**Comprobar actualizaciones**, que consulta el último release público de GitHub y
-compara versiones. El chequeo es **manual** a propósito (cada pulsación es 1 llamada
-anónima a la API, que tiene límite): verde = última versión, amarillo = hay una nueva
-(con su tag), rojo = no se pudo comprobar (sin red, API caída…).
-
 ---
 
 ## Herramientas incluidas
@@ -283,7 +275,7 @@ LinuxHelm/
 │       │   │   ├── ScreenPrincipal.kt     # Menú principal
 │       │   │   ├── ScreenInfo.kt          # Discos, paquetes, equipo y salud
 │       │   │   ├── ScreenTools.kt         # Lanzador de scripts
-│       │   │   └── ScreenConfiguracion.kt # Idioma, tema, escala y acerca de
+│       │   │   └── ScreenConfiguracion.kt # Idioma, tema y escala
 │       │   ├── ulxComponentes/        # MenuSelector (desplegable genérico de ajustes)
 │       │   └── ulxLib/                # Toda la lógica (ver Mapa de módulos)
 │       └── composeResources/          # logo, etc.
@@ -305,7 +297,7 @@ nunca al revés, así que probar la lógica no requiere abrir ninguna ventana.
 | `ScreenPrincipal.kt` | Menú principal |
 | `ScreenInfo.kt` | Discos, paquetes, equipo y chequeos de salud |
 | `ScreenTools.kt` | Lista de scripts: ejecutar, añadir, quitar y sus diálogos |
-| `ScreenConfiguracion.kt` | Idioma, tema, escala y "Acerca de" |
+| `ScreenConfiguracion.kt` | Idioma, tema y escala |
 
 > Excepción preexistente: `ScreenInfo.kt` trae además su propia lógica de consulta al
 > sistema (`getDiskInfo()` leyendo `lsblk`, `quickCheck()`/`deepCheck()` con `pkexec`,
@@ -320,14 +312,12 @@ nunca al revés, así que probar la lógica no requiere abrir ninguna ventana.
 | `ulxDB.kt` | Persistencia: SQLite en `~/.config/ulx/LinuxHelm/lh.db` | `connect()` + migraciones de columnas, `seedSystemTools()` (despliega `ulxTools/` en cada arranque), `upsertScript()` / `deleteScript()` / `getAllScripts()`, ajustes clave-valor |
 | `ulxSystemTools.kt` | Descubrimiento de herramientas (funciones puras, testeables) | `discoverTools()` recursivo, `findMainExecutable()`, parsers JSON mínimos (`jsonStringField` / `jsonBoolField`), `extractResourceTree()` (árbol desde disco en dev o desde dentro del JAR empaquetado) |
 | `ulxSysInfo.kt` | Datos del equipo (tarjeta Equipo de Información) | Parsers puros de `/proc` (cpuinfo, meminfo, uptime, loadavg), `/etc/os-release` y térmicas de `/sys/class/thermal`; `leerEquipo()`, `formatUptime()`, `formatRam()` |
-| `ulxAbout.kt` | Versión y actualizaciones | `versionDeLaApp()` (recurso `ulxVersion.properties` generado por Gradle), `consultarUltimaVersion()` (último release de GitHub), `compararVersiones()` / `esVersionMasNueva()` |
 | `ulxSettings.kt` | Ajustes globales (idioma, tema, escala) con caché en memoria | `loadAndApply()` antes del primer pintado (sin parpadeo); la escala es observable y reescala la UI en caliente |
 | `ulxLang.kt` / `ulxLangManager.kt` | Textos de la UI (i18n: EN, ES, ZH, PT) | `applySaved(lang)` + `setEnglish()` / `setSpanish()` / `setChinese()` / `setPortuguese()` |
 | `ulxColor.kt` / `ulxColorManager.kt` | Paleta observable y temas | `setLight()` / `setDark()` / `colorScheme()`; las pantallas jamás crean `Color()` a mano |
 
 Los cubren los tests: `UlxScriptsTest` (lanzamiento), `UlxSystemToolsTest` y
-`UlxSysInfoTest` (parsers), `UlxAboutTest` (versión y comparación de releases) y
-`SharedCommonTest` / `SharedLogicDesktopTest`.
+`UlxSysInfoTest` (parsers) y `SharedCommonTest` / `SharedLogicDesktopTest`.
 
 ### Navegación
 
@@ -466,24 +456,6 @@ Las **claves de guardado** son los literales fijos del selector
 lee una vez al arrancar y queda en caché en memoria (ninguna query SQLite dentro de una
 composición). Al cambiar ajustes en Configuración, `saveLang`/`saveTheme`/`saveEscala`
 actualizan caché + aplican + persisten en IO.
-
-### Versión y actualizaciones
-
-La versión de la app vive en **una sola fuente**: `APP_VERSION` en `gradle.properties`.
-
-- `desktopApp` la usa para empaquetar (`packageVersion` del .deb/.rpm y los nombres del
-  tar.gz y del AppImage).
-- `shared/build.gradle.kts` la embebe en el classpath como recurso
-  `ulxVersion.properties`, que `UlxAbout` (`ulxLib/ulxAbout.kt`) lee al abrir
-  Configuración: lo que ves en "Acerca de" es exactamente lo que empaqueta.
-- **Comprobación de actualizaciones**: el botón consulta
-  `https://api.github.com/repos/abeguerr01/LinuxHelm/releases/latest` (API pública, sin
-  autenticación y sin dependencias: `HttpURLConnection` + el parser JSON mínimo de
-  `ulxSystemTools`) y extrae el `tag_name`. La comparación de versiones es numérica por
-  segmentos (`1.10 > 1.9`, la "v" inicial es opcional y `-rc1` cuenta como
-  pre-release) y vive en funciones puras cubiertas por `UlxAboutTest`.
-- El chequeo es **manual** a propósito: el rate limit anónimo de la API son 60
-  llamadas/hora por IP, de sobra para un botón, no para un refresco automático.
 
 ### Información del sistema
 

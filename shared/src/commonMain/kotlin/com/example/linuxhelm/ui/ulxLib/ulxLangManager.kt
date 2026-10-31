@@ -48,14 +48,6 @@ object ulxLangManager {
         ulxLang.Sistema = "Sistema"
         ulxLang.Escritorio = "Escritorio"
         ulxLang.Cargando = "Cargando…"
-        // "Acerca de"
-        ulxLang.AcercaDe = "Acerca de"
-        ulxLang.Version = "Versión"
-        ulxLang.ComprobarActualizaciones = "Comprobar actualizaciones"
-        ulxLang.Comprobando = "Comprobando…"
-        ulxLang.UltimaVersion = "Estás en la última versión"
-        ulxLang.NuevaVersionDisponible = "Hay una nueva versión disponible"
-        ulxLang.ErrorAlComprobar = "No se pudo comprobar las actualizaciones"
     }
 
     fun setEnglish(){
@@ -105,14 +97,6 @@ object ulxLangManager {
         ulxLang.Sistema = "System"
         ulxLang.Escritorio = "Desktop"
         ulxLang.Cargando = "Loading…"
-        // About
-        ulxLang.AcercaDe = "About"
-        ulxLang.Version = "Version"
-        ulxLang.ComprobarActualizaciones = "Check for updates"
-        ulxLang.Comprobando = "Checking…"
-        ulxLang.UltimaVersion = "You are on the latest version"
-        ulxLang.NuevaVersionDisponible = "A new version is available"
-        ulxLang.ErrorAlComprobar = "Could not check for updates"
     }
 
     fun setChinese() {
@@ -162,14 +146,6 @@ object ulxLangManager {
         ulxLang.Sistema = "系统"
         ulxLang.Escritorio = "桌面环境"
         ulxLang.Cargando = "加载中…"
-        // “关于”
-        ulxLang.AcercaDe = "关于"
-        ulxLang.Version = "版本"
-        ulxLang.ComprobarActualizaciones = "检查更新"
-        ulxLang.Comprobando = "检查中…"
-        ulxLang.UltimaVersion = "你已是最新版本"
-        ulxLang.NuevaVersionDisponible = "有新版本可用"
-        ulxLang.ErrorAlComprobar = "无法检查更新"
     }
 
     fun setPortuguese() {
@@ -219,14 +195,6 @@ object ulxLangManager {
         ulxLang.Sistema = "Sistema"
         ulxLang.Escritorio = "Área de trabalho"
         ulxLang.Cargando = "Carregando…"
-        // "Sobre"
-        ulxLang.AcercaDe = "Sobre"
-        ulxLang.Version = "Versão"
-        ulxLang.ComprobarActualizaciones = "Verificar atualizações"
-        ulxLang.Comprobando = "Verificando…"
-        ulxLang.UltimaVersion = "Você está na versão mais recente"
-        ulxLang.NuevaVersionDisponible = "Uma nova versão está disponível"
-        ulxLang.ErrorAlComprobar = "Não foi possível verificar as atualizações"
     }
 
     /**
