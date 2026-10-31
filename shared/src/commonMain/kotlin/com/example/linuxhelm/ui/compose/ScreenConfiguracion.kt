@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,14 +23,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.linuxhelm.ui.ulxComponentes.MenuSelector
-import com.example.linuxhelm.ui.ulxLib.ResultadoActualizacion
-import com.example.linuxhelm.ui.ulxLib.UlxAbout
 import com.example.linuxhelm.ui.ulxLib.ulxColor
 import com.example.linuxhelm.ui.ulxLib.ulxLang
 import com.example.linuxhelm.ui.ulxLib.ulxSettings
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 @Preview
@@ -45,10 +40,6 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
     var escalaLabel by remember {
         mutableStateOf("${(ulxSettings.escala * 100).roundToInt()}%")
     }
-    // "Acerca de": versión embebida en el build + comprobación de actualizaciones
-    val versionApp = remember { UlxAbout.versionDeLaApp() }
-    var comprobandoActualizaciones by remember { mutableStateOf(false) }
-    var resultadoActualizacion by remember { mutableStateOf<ResultadoActualizacion?>(null) }
 
     val selectedThemeLabel = if (themeKey == "dark") ulxLang.Oscuro else ulxLang.Claro
 
@@ -125,74 +116,6 @@ fun ScreenConfiguracion(onVolver: () -> Unit = {}) {
                         scope.launch { ulxSettings.saveEscala(factor) }
                     }
                 )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Tarjeta "Acerca de": versión de la app y comprobación manual de
-            // actualizaciones contra los releases de GitHub (ver UlxAbout en
-            // ulxLib/ulxAbout.kt). El botón es manual a propósito: cada pulsación
-            // es 1 llamada a la API anónima, que tiene rate limit.
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(ulxColor.div1)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    ulxLang.AcercaDe,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = ulxColor.texto
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    "LinuxHelm — ${ulxLang.Version} $versionApp",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = ulxColor.texto
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    enabled = !comprobandoActualizaciones,
-                    onClick = {
-                        comprobandoActualizaciones = true
-                        resultadoActualizacion = null
-                        scope.launch {
-                            val resultado = withContext(Dispatchers.IO) {
-                                UlxAbout.consultarUltimaVersion()
-                            }
-                            resultadoActualizacion = resultado
-                            comprobandoActualizaciones = false
-                        }
-                    }
-                ) {
-                    Text(
-                        if (comprobandoActualizaciones) ulxLang.Comprobando
-                        else ulxLang.ComprobarActualizaciones
-                    )
-                }
-
-                resultadoActualizacion?.let { r ->
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = when {
-                            r.error != null -> ulxLang.ErrorAlComprobar
-                            r.hayActualizacion ->
-                                "${ulxLang.NuevaVersionDisponible}: ${r.versionRemota}"
-                            else -> ulxLang.UltimaVersion
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = when {
-                            r.error != null -> ulxColor.error
-                            r.hayActualizacion -> ulxColor.aviso
-                            else -> ulxColor.exito
-                        }
-                    )
-                }
             }
         }
     }
