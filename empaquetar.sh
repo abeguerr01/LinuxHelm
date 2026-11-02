@@ -5,7 +5,9 @@
 #   • .jar      uber-jar: se ejecuta con cualquier Java 17+ instalado
 #   • .deb      Debian / Ubuntu / Mint…
 #   • .rpm      Fedora / RHEL / openSUSE / AlmaLinux…
-#   • .tar.gz   portátil: trae su propio Java recortado (no necesita Java)
+#   • .tar.gz   portátil: trae su propio Java recortado (no necesita Java) y
+#               al ejecutarlo se instala solo en el menú de aplicaciones
+#               (crea ~/.local/share/applications/linuxhelm.desktop)
 #   • .AppImage archivo único ejecutable en casi cualquier distro
 #   • (la carpeta autocontenida con su JRE —la "app-image"— queda dentro del
 #     .tar.gz y también en desktopApp/build/compose/binaries/main/app/)
@@ -76,25 +78,34 @@ intentar() {
         FALLOS=$((FALLOS + 1))
         return 1
     fi
-    local patron f
+    local patron f mejor=""
     for patron in "$@"; do
         # Sin comillas a propósito: queremos expandir el comodín.
         for f in $patron; do
             [ -f "$f" ] || continue
-            if [ ! -s "$f" ]; then
-                RESUMEN+=("${etiqueta}|$(basename "$f")|${C_ROJO}VACÍO: no es válido${C_RESET}")
-                FALLOS=$((FALLOS + 1))
-                return 1
+            # Un patrón puede dar VARIOS ficheros (p. ej. restos de otra
+            # versión en build/). Se queda con el MÁS RECIENTE: copiar el viejo
+            # pasaría la comprobación sin ser el que acaba de compilarse.
+            if [ -z "$mejor" ] || [ "$f" -nt "$mejor" ]; then
+                mejor=$f
             fi
-            cp -f "$f" "$DIST/"
-            echo "   ${C_VERDE}✓ $(basename "$f") ($(du -h "$f" | cut -f1))${C_RESET}"
-            RESUMEN+=("${etiqueta}|$(basename "$f")|${C_VERDE}OK ($(du -h "$f" | cut -f1))${C_RESET}")
-            return 0
         done
     done
-    RESUMEN+=("${etiqueta}|—|${C_ROJO}La tarea fue bien pero no apareció el fichero${C_RESET}")
-    FALLOS=$((FALLOS + 1))
-    return 1
+    f=$mejor
+    if [ -z "$f" ]; then
+        RESUMEN+=("${etiqueta}|—|${C_ROJO}La tarea fue bien pero no apareció el fichero${C_RESET}")
+        FALLOS=$((FALLOS + 1))
+        return 1
+    fi
+    if [ ! -s "$f" ]; then
+        RESUMEN+=("${etiqueta}|$(basename "$f")|${C_ROJO}VACÍO: no es válido${C_RESET}")
+        FALLOS=$((FALLOS + 1))
+        return 1
+    fi
+    cp -f "$f" "$DIST/"
+    echo "   ${C_VERDE}✓ $(basename "$f") ($(du -h "$f" | cut -f1))${C_RESET}"
+    RESUMEN+=("${etiqueta}|$(basename "$f")|${C_VERDE}OK ($(du -h "$f" | cut -f1))${C_RESET}")
+    return 0
 }
 
 # ── Compilaciones ───────────────────────────────────────────────────────────

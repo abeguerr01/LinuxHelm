@@ -1,0 +1,99 @@
+#!/bin/sh
+# =============================================================================
+# Linux Helm — lanzador del .tar.gz portátil
+#
+# Este es el "bin/Linux Helm" de siempre: dentro del .tar.gz el binario que
+# genera jpackage se llama "LinuxHelm" (y su .cfg también, porque el lanzador
+# lo localiza con el nombre del propio binario) y el nombre original lo ocupa
+# este script, para que quien ya se sabe la ruta no tenga que aprender ninguna
+# nueva.
+#
+# Al ejecutarlo:
+#
+#   1. Registra la aplicación en el menú de aplicaciones del usuario, escribiendo
+#      ~/.local/share/applications/linuxhelm.desktop con rutas ABSOLUTAS a esta
+#      copia (un .desktop no admite rutas relativas). Solo se reescribe si algo
+#      ha cambiado; si no se puede —sin HOME, disco de solo lectura…— se sigue
+#      lanzando igual: instalar en el menú es opcional, lanzar no.
+#      No pide contraseña y no escribe fuera de $HOME.
+#
+#   2. Arranca la aplicación real: bin/LinuxHelm.
+#
+# El .desktop apunta a este script, así que si mueves la carpeta basta con
+# volver a ejecutarlo para que el lanzador del menú se repare solo.
+#
+# Uso:  ./bin/Linux\ Helm          (una vez basta; después, desde el menú)
+# =============================================================================
+set -u
+
+# Raíz de esta copia. readlink -f resuelve los enlaces simbólicos, igual que
+# hace el AppRun del .AppImage. Este script vive dentro de bin/, así que la
+# raíz es el padre de su propia carpeta (si no, todo acabaría en bin/bin/…).
+RAIZ="$(dirname "$(dirname "$(readlink -f "$0")")")"
+BINARIO="$RAIZ/bin/LinuxHelm"
+ICONO="$RAIZ/logo.png"
+
+# ── 1) Instalar el lanzador en el menú ──────────────────────────────────────
+instalar_en_el_menu() {
+    [ -n "${HOME:-}" ] || return 0
+
+    apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+    desktop="$apps/linuxhelm.desktop"
+    mkdir -p "$apps" 2>/dev/null || return 0
+
+    # Primero a un temporal y solo después moverlo: si algo falla a mitad no
+    # queda un .desktop a medias. Ojo con el ORDEN de las redirecciones:
+    # 2>/dev/null tiene que ir ANTES de >"$tmp", porque si no el error de
+    # "permiso denegado" al abrir el temporal se imprime en la terminal real.
+    # Ojo también con los espacios de la ruta ("Linux Helm"): Exec va
+    # entrecomillado, Icon se toma literal.
+    tmp="$apps/.linuxhelm.desktop.$$"
+    if ! cat 2>/dev/null >"$tmp" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Linux Helm
+Comment=Linux Helm - lanzador de scripts y panel de información del sistema
+Exec="$RAIZ/bin/Linux Helm"
+Icon=$ICONO
+Categories=Utility;
+Terminal=false
+EOF
+    then
+        rm -f "$tmp"
+        return 0
+    fi
+    chmod 644 "$tmp" 2>/dev/null
+
+    # Si ya existía y no ha cambiado, ni se toca: así no se reindexa el menú
+    # en cada arranque.
+    if cmp -s "$tmp" "$desktop" 2>/dev/null; then
+        rm -f "$tmp"
+        return 0
+    fi
+
+    nuevo=0
+    [ -e "$desktop" ] || nuevo=1
+    if ! mv -f "$tmp" "$desktop" 2>/dev/null; then
+        rm -f "$tmp"
+        return 0
+    fi
+
+    command -v update-desktop-database >/dev/null 2>&1 &&
+        update-desktop-database "$apps" >/dev/null 2>&1
+
+    if [ "$nuevo" = 1 ]; then
+        echo "✓ Linux Helm añadido al menú de aplicaciones."
+        command -v notify-send >/dev/null 2>&1 &&
+            notify-send "Linux Helm" "Añadido al menú de aplicaciones" 2>/dev/null
+    fi
+    return 0
+}
+
+instalar_en_el_menu
+
+# ── 2) Lanzar la aplicación ────────────────────────────────────────────────
+if [ ! -x "$BINARIO" ]; then
+    echo "Linux Helm: falta el binario real ($BINARIO)." >&2
+    exit 1
+fi
+exec "$BINARIO" "$@"

@@ -114,6 +114,17 @@ plus the custom `packageTarGz` and `packageAppImage` tasks. The package is
 self-contained: it ships its own JRE and
 the bundled tools travel **inside the JAR** (see [Technical section](#technical-section)).
 
+The **`.tar.gz` installs itself into the application menu**. Extract it and run
+`Linux Helm/bin/Linux Helm`: the launcher itself writes
+`~/.local/share/applications/linuxhelm.desktop` — with absolute paths to that copy,
+no password prompt, and nothing written outside `$HOME` — then starts the app; from
+then on it shows up in the menu with its icon. It is only rewritten when something
+actually changes, so running it again is harmless, and if you move the folder, run
+it once more and the `.desktop` repairs itself. For that script to occupy
+`bin/Linux Helm`, inside the tarball jpackage's real binary is named `LinuxHelm`
+(and its `.cfg` too, because the launcher locates it by its own name); the app-image
+under `build/` — the one used by `.deb`, `.rpm` and `.AppImage` — is left untouched.
+
 The package name is **Linux Helm**: Debian and rpm package names cannot contain
 uppercase or spaces, so jpackage sanitizes it to `linux-helm` (file
 `linux-helm_1.0.0_amd64.deb`, installed under `/opt/linux-helm`, launcher

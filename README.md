@@ -119,6 +119,18 @@ Los formatos de empaquetado configurados son `.deb` y `.rpm`
 `packageAppImage`. El paquete es autocontenido: trae su propio JRE y las herramientas
 incluidas viajan **dentro del JAR** (ver [Apartado técnico](#apartado-técnico)).
 
+El **`.tar.gz` se instala solo en el menú de aplicaciones**. Al extraerlo y ejecutar
+`Linux Helm/bin/Linux Helm`, el propio lanzador escribe
+`~/.local/share/applications/linuxhelm.desktop` —con rutas absolutas a esa copia, sin
+pedir contraseña y sin escribir fuera de `$HOME`— y arranca la app; a partir de ese
+momento sale en el menú con su icono. Solo se reescribe si algo cambia, así que
+repetir el lanzamiento no molesta, y si mueves la carpeta basta con volver a
+ejecutarlo para que el `.desktop` se repare solo. Para que ese script ocupe
+`bin/Linux Helm`, dentro del tarball el binario real de jpackage se llama
+`LinuxHelm` (y su `.cfg` también, porque el lanzador lo localiza con su propio
+nombre); la app-image de `build/` —la que usan `.deb`, `.rpm` y `.AppImage`— no se
+toca.
+
 El nombre del paquete es **Linux Helm**: Debian y rpm no admiten mayúsculas ni
 espacios en el nombre del paquete, así que jpackage lo sanea a `linux-helm`
 (fichero `linux-helm_1.0.0_amd64.deb`, instalación en `/opt/linux-helm`, lanzador

@@ -1,4 +1,5 @@
 import java.io.File
+import org.gradle.api.file.RelativePath
 import org.gradle.process.CommandLineArgumentProvider
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
@@ -59,6 +60,15 @@ compose.desktop {
 
 // .tar.gz portátil: comprime la app-image que genera "createDistributable"
 // (launcher + jars + runtime de Java recortado, no requiere Java instalado).
+//
+// Además incluye un LANZADOR-INSTALADOR en bin/Linux Helm: al ejecutarlo escribe
+// ~/.local/share/applications/linuxhelm.desktop (rutas absolutas, sin root) y
+// después arranca la app, así que el .tar.gz aparece en el menú de aplicaciones.
+// Para que ese script ocupe "bin/Linux Helm" hay que renombrar el binario real
+// que genera jpackage —y su .cfg con él, porque el lanzador localiza su
+// configuración con su propio nombre (sin renombrarlo falla con
+// "Error opening …/LinuxHelm.cfg")—. Solo se renombra DENTRO de esta tarea:
+// la app-image de build/ queda intacta para .deb/.rpm/AppImage.
 val packageTarGz = tasks.register<Tar>("packageTarGz") {
     group = "compose desktop"
     description = "Crea un .tar.gz portátil de la aplicación"
@@ -73,7 +83,27 @@ val packageTarGz = tasks.register<Tar>("packageTarGz") {
     val arch = System.getProperty("os.arch").let { if (it == "amd64") "x86_64" else it }
     archiveFileName.set("linux-helm-$appVersion-linux-$arch.tar.gz")
     destinationDirectory.set(layout.buildDirectory.dir("compose/binaries/main/tar"))
-    from(layout.buildDirectory.dir("compose/binaries/main/app"))
+
+    from(layout.buildDirectory.dir("compose/binaries/main/app")) {
+        // Renombra el binario real y su .cfg para liberar el nombre
+        // "bin/Linux Helm" (lo ocupa el script instalador).
+        eachFile {
+            when (path) {
+                "Linux Helm/bin/Linux Helm" ->
+                    relativePath = RelativePath(false, "Linux Helm", "bin", "LinuxHelm")
+                "Linux Helm/lib/app/Linux Helm.cfg" ->
+                    relativePath = RelativePath(false, "Linux Helm", "lib", "app", "LinuxHelm.cfg")
+            }
+        }
+    }
+    // El instalador (bin/Linux Helm) y el icono que referencia el .desktop.
+    from(layout.projectDirectory.dir("targz")) {
+        into("Linux Helm")
+    }
+    from(rootProject.file("shared/src/commonMain/composeResources/drawable/logo.png")) {
+        into("Linux Helm")
+    }
+
     compression = Compression.GZIP
 }
 
